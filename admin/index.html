@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hiking Buddy · Admin</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+tailwind.config={
+  theme:{
+    extend:{
+      colors:{
+        sage:{50:'#f4f6ef',100:'#e8ecdf',200:'#d4ddc7',500:'#87936c',600:'#707d57',700:'#596547'},
+        ink:'#292d25'
+      },
+      boxShadow:{soft:'0 12px 35px rgba(41,45,37,.06)'}
+    }
+  }
+}
+</script>
+<style>
+  body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;background:#f7f8f5;color:#292d25}
+  .navitem{display:flex;align-items:center;gap:.8rem;padding:.75rem .9rem;border-radius:12px;color:#73786d;font-size:.9rem;font-weight:500;transition:.2s}
+  .navitem:hover,.navitem.active{background:#e8ecdf;color:#596547}
+  .btn{border-radius:10px;padding:.6rem .85rem;font-size:.82rem;font-weight:600;transition:.2s}
+  .btn:hover{transform:translateY(-1px)}
+  .btn-green{background:#596547;color:white}
+  .btn-soft{background:#eef1e8;color:#596547}
+  .btn-red{background:#fff0ee;color:#b44c42}
+  .pill{border-radius:99px;padding:.28rem .6rem;font-size:.72rem;font-weight:600}
+  .table-wrap{overflow-x:auto}
+  th{font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:#85897f;font-weight:600;text-align:left;padding:1rem .9rem;white-space:nowrap}
+  td{padding:1rem .9rem;border-top:1px solid #f0f1ed;font-size:.84rem;white-space:nowrap}
+  .panel{background:white;border:1px solid #e9ebe5;border-radius:18px;box-shadow:0 8px 28px rgba(41,45,37,.035)}
+  .page{display:none}
+  .page.active{display:block}
+  .side{width:250px}
+  .overlay{display:none}
+
+  /* Login screen */
+  .login-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f7f8f5;
+    transition: opacity 0.3s, visibility 0.3s;
+  }
+  .login-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .login-card {
+    background: white;
+    border: 1px solid #e9ebe5;
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(41,45,37,.1);
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 420px;
+    margin: 1rem;
+  }
+  .login-card .logo-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: #596547;
+    color: white;
+    display: grid;
+    place-items: center;
+    font-size: 1.5rem;
+  }
+  .login-card input {
+    width: 100%;
+    border: 1px solid #e1e4dc;
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+    background: white;
+    color: #292d25;
+    transition: border-color 0.2s;
+  }
+  .login-card input:focus {
+    outline: 2px solid #d4ddc7;
+    border-color: #87936c;
+  }
+  .login-card .btn-login {
+    width: 100%;
+    background: #596547;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 0.8rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .login-card .btn-login:hover {
+    background: #4a563c;
+    transform: translateY(-1px);
+  }
+  .login-error {
+    background: #fff0ee;
+    color: #b44c42;
+    border-radius: 10px;
+    padding: 0.7rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: none;
+  }
+  .login-error.show {
+    display: block;
+  }
+
+  /* Hide dashboard initially */
+  #dashboard {
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+  #dashboard.dimmed {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+</style>
+<link rel="stylesheet" href="./admin.css">
+</head>
+<body>
+
+<!-- ========== LOGIN SCREEN ========== -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="logo-icon">⌁</div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight">hiking<span class="text-sage-600">buddy</span></h1>
+        <p class="text-xs text-stone-400 font-medium tracking-[.12em]">ADMIN CONSOLE</p>
+      </div>
+    </div>
+
+    <h2 class="text-lg font-bold mb-1">Welcome back</h2>
+    <p class="text-sm text-stone-500 mb-6">Sign in to manage the hiking community.</p>
+
+    <div id="loginError" class="login-error mb-4">
+      ⚠️ Invalid credentials. Try <b>admin@hikingbuddy.com</b> / <b>admin123</b>
+    </div>
+
+    <form id="loginForm" class="space-y-4">
+      <label class="block text-sm font-medium">
+        Email address
+        <input id="loginEmail" type="email" value="admin@hikingbuddy.com" required
+               placeholder="admin@hikingbuddy.com" class="mt-1.5"/>
+      </label>
+      <label class="block text-sm font-medium">
+        Password
+        <input id="loginPassword" type="password" value="admin123" required
+               placeholder="••••••••" class="mt-1.5"/>
+      </label>
+      <div class="flex items-center justify-between text-xs text-stone-500">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked class="w-3.5 h-3.5 accent-sage-700"/> Remember me
+        </label>
+        <span class="text-sage-600 font-medium cursor-pointer hover:underline">Forgot password?</span>
+      </div>
+      <button type="submit" class="btn-login">Sign in to dashboard →</button>
+    </form>
+
+    <p class="mt-6 text-center text-xs text-stone-400">
+      Demo credentials pre-filled · Connect Laravel auth for production
+    </p>
+  </div>
+</div>
+
+<!-- ========== DASHBOARD ========== -->
+<div id="dashboard" class="min-h-screen flex dimmed">
+<aside id="sidebar" class="side fixed inset-y-0 left-0 z-30 bg-white border-r border-stone-200/80 p-5 flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-300">
+<a href="#overview" class="flex items-center gap-3 px-2 py-3"><span class="grid place-items-center w-10 h-10 rounded-xl bg-sage-700 text-white text-xl">⌁</span><span><b class="text-lg tracking-tight">hiking<span class="text-sage-600">buddy</span></b><small class="block text-xs text-stone-400">ADMIN CONSOLE</small></span></a>
+<div class="mt-8 mb-2 px-3 text-[10px] font-bold tracking-[.16em] text-stone-400">WORKSPACE</div>
+<nav class="space-y-1"><a class="navitem active" href="#overview" data-page="overview">▦ <span>Overview</span></a><a class="navitem" href="#members" data-page="members">♙ <span>Member management</span></a><a class="navitem" href="#trips" data-page="trips">⌁ <span>Trip moderation</span></a><a class="navitem" href="#reports" data-page="reports">⚑ <span>Reports & flags</span><span id="reportCount" class="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800">3</span></a><a class="navitem" href="#settings" data-page="settings">⚙ <span>Announcements & settings</span></a></nav>
+<div class="mt-auto rounded-2xl bg-sage-50 p-4"><div class="flex items-center gap-2"><span class="grid w-9 h-9 place-items-center rounded-full bg-sage-200 text-sage-700 font-bold">AD</span><div><p class="text-sm font-semibold">Community Admin</p><p class="text-xs text-stone-500">Platform moderator</p></div></div><button onclick="signOut()" class="mt-4 w-full text-left text-xs text-stone-500 hover:text-sage-700">↪ Sign out</button></div>
+</aside>
+<div id="scrim" class="overlay fixed inset-0 z-20 bg-black/30"></div>
+<main class="min-w-0 flex-1 lg:ml-[250px]">
+<header class="sticky top-0 z-10 flex h-[76px] items-center justify-between border-b border-stone-200/70 bg-white/90 px-5 backdrop-blur md:px-8"><div class="flex items-center gap-3"><button id="menuBtn" class="rounded-lg border border-stone-200 p-2 lg:hidden" aria-label="Open navigation">☰</button><div><p class="text-xs text-stone-400">Hiking Buddy / <span id="crumb">Overview</span></p><h1 id="topTitle" class="text-lg font-bold">Community overview</h1></div></div><div class="flex items-center gap-3"><span class="hidden text-xs text-stone-500 sm:block">Wednesday, 14 October 2026</span><button class="relative grid h-10 w-10 place-items-center rounded-full bg-sage-50 text-sage-700" onclick="go('reports')" aria-label="View reports">♧<span class="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white"></span></button><span class="grid h-9 w-9 place-items-center rounded-full bg-[#e7d9c5] text-sm font-bold text-[#6a5740]">AD</span></div></header>
+<div class="p-5 md:p-8">
+<section id="page-overview" class="page active"><div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">COMMUNITY HEALTH</p><h2 class="mt-2 text-2xl font-bold tracking-tight md:text-3xl">Good morning, Admin <span>🌿</span></h2><p class="mt-2 text-sm text-stone-500">A clear view of the people and trips shaping the community.</p></div><button class="btn btn-soft" onclick="exportData()">↓ Export overview</button></div>
+<div class="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Registered users</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-sage-50 text-sage-700">♙</span></div><div class="mt-4 flex items-end justify-between"><b id="kUsers" class="text-3xl">1,284</b><span class="text-xs font-semibold text-sage-700">↗ 12.8%</span></div><p class="mt-2 text-xs text-stone-400">vs. previous month</p></div><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Active trips this month</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-700">⌁</span></div><div class="mt-4 flex items-end justify-between"><b id="kTrips" class="text-3xl">86</b><span class="text-xs font-semibold text-sage-700">↗ 8.4%</span></div><p class="mt-2 text-xs text-stone-400">Trips published in October</p></div><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Mountains / trails</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-700">△</span></div><div class="mt-4 flex items-end justify-between"><b class="text-3xl">24</b><span class="text-xs font-semibold text-stone-400">Across 3 regions</span></div><p class="mt-2 text-xs text-stone-400">Curated destinations</p></div><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Member joins</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-rose-50 text-rose-700">♡</span></div><div class="mt-4 flex items-end justify-between"><b id="kJoins" class="text-3xl">642</b><span class="text-xs font-semibold text-sage-700">↗ 18.2%</span></div><p class="mt-2 text-xs text-stone-400">Total trip memberships</p></div></div>
+<div class="mt-5 grid gap-5 xl:grid-cols-[1.45fr_1fr]"><div class="panel p-5 md:p-6"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-bold">User growth over time</h3><p class="mt-1 text-xs text-stone-400">New registrations by month</p></div><select id="growthRange" class="rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs" onchange="updateGrowth()"><option value="6">Last 6 months</option><option value="12">Last 12 months</option></select></div><div class="mt-5 h-[260px]"><canvas id="growthChart"></canvas></div></div><div class="panel p-5 md:p-6"><div><h3 class="font-bold">Most popular mountains</h3><p class="mt-1 text-xs text-stone-400">Trips created by destination</p></div><div class="mt-5 h-[260px]"><canvas id="mountainChart"></canvas></div></div></div>
+<div class="mt-5 grid gap-5 xl:grid-cols-[1.2fr_.8fr]"><div class="panel"><div class="flex items-center justify-between p-5"><div><h3 class="font-bold">Recent members</h3><p class="mt-1 text-xs text-stone-400">Latest community sign-ups</p></div><button class="btn btn-soft" onclick="go('members')">View all →</button></div><div class="table-wrap"><table class="w-full"><thead><tr><th>Member</th><th>Joined</th><th>Status</th></tr></thead><tbody id="recentMembers"></tbody></table></div></div><div class="panel p-5"><div class="flex items-center justify-between"><div><h3 class="font-bold">Community health</h3><p class="mt-1 text-xs text-stone-400">Moderation snapshot</p></div><span class="pill bg-sage-100 text-sage-700">Live overview</span></div><div class="mt-5 space-y-5"><div><div class="flex justify-between text-sm"><span class="text-stone-500">Active members</span><b>94%</b></div><div class="mt-2 h-2 rounded-full bg-stone-100"><div class="h-2 w-[94%] rounded-full bg-sage-600"></div></div></div><div><div class="flex justify-between text-sm"><span class="text-stone-500">Trips with no flags</span><b>97%</b></div><div class="mt-2 h-2 rounded-full bg-stone-100"><div class="h-2 w-[97%] rounded-full bg-sage-600"></div></div></div><div><div class="flex justify-between text-sm"><span class="text-stone-500">Reports awaiting review</span><b id="pendingMini">3</b></div><div class="mt-2 h-2 rounded-full bg-stone-100"><div id="pendingBar" class="h-2 w-[28%] rounded-full bg-amber-500"></div></div></div></div><button onclick="go('reports')" class="btn btn-soft mt-6 w-full">Review flagged content →</button></div></div></section>
+<section id="page-members" class="page"><div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">COMMUNITY</p><h2 class="mt-2 text-2xl font-bold">Member management</h2><p class="mt-2 text-sm text-stone-500">Keep the community welcoming and safe.</p></div><button class="btn btn-green" onclick="addDemoMember()">＋ Add demo member</button></div><div class="panel mt-6"><div class="flex flex-col gap-3 border-b border-stone-100 p-4 md:flex-row md:items-center md:justify-between"><input id="memberSearch" oninput="renderMembers()" placeholder="Search name or email…" class="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm outline-none focus:border-sage-500 md:max-w-sm"/><select id="memberStatus" onchange="renderMembers()" class="rounded-xl border border-stone-200 px-3 py-2.5 text-sm"><option value="all">All statuses</option><option>Active</option><option>Banned</option></select></div><div class="table-wrap"><table class="w-full"><thead><tr><th>Member</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Action</th></tr></thead><tbody id="membersTable"></tbody></table></div><div class="border-t border-stone-100 p-4 text-xs text-stone-400" id="memberFoot"></div></div></section>
+<section id="page-trips" class="page"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">SAFETY & CONTENT</p><h2 class="mt-2 text-2xl font-bold">Trip moderation</h2><p class="mt-2 text-sm text-stone-500">Review trip listings and remove unsafe or inappropriate posts.</p></div><div class="panel mt-6"><div class="flex flex-col gap-3 border-b border-stone-100 p-4 sm:flex-row sm:items-center sm:justify-between"><input id="tripSearch" oninput="renderTrips()" placeholder="Search trips, mountain or organizer…" class="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm outline-none focus:border-sage-500 sm:max-w-sm"/><select id="tripStatus" onchange="renderTrips()" class="rounded-xl border border-stone-200 px-3 py-2.5 text-sm"><option value="all">All trips</option><option>Upcoming</option><option>Past</option><option>Flagged</option></select></div><div class="table-wrap"><table class="w-full"><thead><tr><th>Trip / mountain</th><th>Organizer</th><th>Date</th><th>Members</th><th>Status</th><th>Action</th></tr></thead><tbody id="tripsTable"></tbody></table></div><div class="border-t border-stone-100 p-4 text-xs text-stone-400" id="tripFoot"></div></div></section>
+<section id="page-reports" class="page"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">TRUST & SAFETY</p><h2 class="mt-2 text-2xl font-bold">Reports & flags</h2><p class="mt-2 text-sm text-stone-500">Review concerns submitted by hikers and take appropriate action.</p></div><div id="reportsList" class="mt-6 grid gap-4 lg:grid-cols-2"></div></section>
+<section id="page-settings" class="page"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">PLATFORM</p><h2 class="mt-2 text-2xl font-bold">Announcements & settings</h2><p class="mt-2 text-sm text-stone-500">Share important community updates and review recent admin activity.</p></div><div class="mt-6 grid gap-5 xl:grid-cols-2"><div class="panel p-5 md:p-6"><h3 class="font-bold">Platform announcement</h3><p class="mt-1 text-sm text-stone-500">Create a notice for members across the community.</p><form id="announcementForm" class="mt-5 space-y-4"><label class="block text-sm font-medium">Announcement title<input id="announcementTitle" required maxlength="90" class="mt-2 w-full rounded-xl border border-stone-200 px-4 py-3 text-sm outline-none focus:border-sage-500" placeholder="e.g. Stay safe on rainy trails"/></label><label class="block text-sm font-medium">Message<textarea id="announcementBody" required rows="4" maxlength="500" class="mt-2 w-full rounded-xl border border-stone-200 px-4 py-3 text-sm outline-none focus:border-sage-500" placeholder="Write a clear, friendly community update…"></textarea></label><button class="btn btn-green" type="submit">Publish announcement ↗</button></form><div id="announcementList" class="mt-6 space-y-3"></div></div><div class="panel p-5 md:p-6"><h3 class="font-bold">Recent activity log</h3><p class="mt-1 text-sm text-stone-500">Actions performed in this demo dashboard.</p><div id="activityList" class="mt-5 space-y-4"></div><div class="mt-5 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800">Demo note: activity is stored in this browser only. A production platform should record immutable audit logs on the server.</div></div></div></section>
+</div><footer class="border-t border-stone-200/70 px-5 py-5 text-xs text-stone-400 md:px-8">© 2026 Hiking Buddy · Admin Console <span class="float-right">Community first. Outdoors together.</span></footer>
+</main></div>
+
+<script>
+/* ===== LOGIN LOGIC ===== */
+const loginScreen = document.getElementById('loginScreen');
+const dashboard = document.getElementById('dashboard');
+const loginForm = document.getElementById('loginForm');
+const loginError = document.getElementById('loginError');
+
+const VALID_EMAIL = 'admin@hikingbuddy.com';
+const VALID_PASSWORD = 'admin123';
+
+// Check if already logged in (sessionStorage for demo)
+if (sessionStorage.getItem('hb-admin-logged-in') === 'true') {
+  loginScreen.classList.add('hidden');
+  dashboard.classList.remove('dimmed');
+}
+
+loginForm.addEventListener('submit', function(e) {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPassword').value;
+
+  if (email === VALID_EMAIL && password === VALID_PASSWORD) {
+    loginError.classList.remove('show');
+    loginScreen.classList.add('hidden');
+    dashboard.classList.remove('dimmed');
+    sessionStorage.setItem('hb-admin-logged-in', 'true');
+    log('Admin signed in');
+    // Initialize dashboard after login
+    initDashboard();
+  } else {
+    loginError.classList.add('show');
+    // Shake animation
+    const card = document.querySelector('.login-card');
+    card.style.animation = 'none';
+    card.offsetHeight;
+    card.style.animation = 'shake 0.35s ease';
+  }
+});
+
+function signOut() {
+  if (!confirm('Sign out of the admin console?')) return;
+  sessionStorage.removeItem('hb-admin-logged-in');
+  loginScreen.classList.remove('hidden');
+  dashboard.classList.add('dimmed');
+  // Reset error
+  loginError.classList.remove('show');
+}
+
+// Add shake keyframes dynamically
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(5px); }
+  }
+`;
+document.head.appendChild(styleSheet);
+
+/* ===== DASHBOARD LOGIC ===== */
+const key = 'hb-admin-state-v1';
+
+const seed = {
+  members: [
+    {id:1, name:'May Thazin', email:'may.thazin@example.com', role:'Member', status:'Active', joined:'Oct 14, 2026'},
+    {id:2, name:'Ko Aung Min', email:'aungmin@example.com', role:'Organizer', status:'Active', joined:'Oct 12, 2026'},
+    {id:3, name:'Thiri Win', email:'thiri.win@example.com', role:'Member', status:'Active', joined:'Oct 10, 2026'},
+    {id:4, name:'Htet Naing', email:'htet.naing@example.com', role:'Organizer', status:'Banned', joined:'Oct 08, 2026'},
+    {id:5, name:'Ei Mon', email:'eimon@example.com', role:'Member', status:'Active', joined:'Oct 06, 2026'},
+    {id:6, name:'Kyaw Zin', email:'kyaw.zin@example.com', role:'Member', status:'Active', joined:'Oct 03, 2026'}
+  ],
+  trips: [
+    {id:1, title:'Sunrise hike at Mount Popa', mountain:'Mount Popa', organizer:'Ko Aung Min', date:'2026-10-20', members:12, status:'Upcoming', flagged:false},
+    {id:2, title:'Weekend adventure at Shan Hills', mountain:'Shan Hills', organizer:'May Thazin', date:'2026-10-24', members:8, status:'Upcoming', flagged:true},
+    {id:3, title:'Green escape at Pyin Oo Lwin', mountain:'Pyin Oo Lwin', organizer:'Thiri Win', date:'2026-10-05', members:15, status:'Past', flagged:false},
+    {id:4, title:'Hidden trail exploration', mountain:'Mount Zwegabin', organizer:'Htet Naing', date:'2026-10-28', members:4, status:'Upcoming', flagged:true},
+    {id:5, title:'Easy morning walk', mountain:'Popa foothills', organizer:'Ei Mon', date:'2026-09-21', members:6, status:'Past', flagged:false}
+  ],
+  reports: [
+    {id:1, type:'Unsafe route information', target:'Hidden trail exploration', by:'A hiker', date:'Today · 09:42', detail:'The route notes may direct new hikers into a steep, unmarked section.', status:'Pending'},
+    {id:2, type:'Spam / misleading content', target:'Shan Hills weekend trip', by:'Community member', date:'Today · 08:15', detail:'The post contains repeated promotional links that do not relate to the trip.', status:'Pending'},
+    {id:3, type:'Inappropriate behaviour', target:'Member profile · Htet Naing', by:'Two hikers', date:'Yesterday · 16:20', detail:'Multiple members reported unwanted messages and disrespectful comments.', status:'Pending'}
+  ],
+  announcements: [],
+  activity: [
+    {text:'Admin dashboard opened', time:'Just now'},
+    {text:'3 community flags are waiting for review', time:'Today · 09:00'}
+  ]
+};
+
+let state;
+try {
+  state = JSON.parse(localStorage.getItem(key)) || seed;
+} catch {
+  state = seed;
+}
+
+let dashboardInitialized = false;
+
+function initDashboard() {
+  if (dashboardInitialized) return;
+  dashboardInitialized = true;
+  renderAll();
+  drawCharts();
+  const initial = location.hash.replace('#','');
+  if (['overview','members','trips','reports','settings'].includes(initial)) go(initial);
+}
+
+function persist() {
+  localStorage.setItem(key, JSON.stringify(state));
+  renderAll();
+}
+
+function log(text) {
+  state.activity.unshift({text, time: new Date().toLocaleString()});
+  state.activity = state.activity.slice(0, 12);
+  localStorage.setItem(key, JSON.stringify(state));
+}
+
+function esc(s='') {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function go(page) {
+  document.querySelectorAll('.page').forEach(e => e.classList.toggle('active', e.id === 'page-' + page));
+  document.querySelectorAll('.navitem').forEach(e => e.classList.toggle('active', e.dataset.page === page));
+  const names = {overview:'Overview', members:'Member management', trips:'Trip moderation', reports:'Reports & flags', settings:'Announcements & settings'};
+  document.getElementById('crumb').textContent = names[page];
+  document.getElementById('topTitle').textContent = page === 'overview' ? 'Community overview' : names[page];
+  location.hash = page;
+  closeMenu();
+}
+
+document.querySelectorAll('[data-page]').forEach(a => a.addEventListener('click', e => {
+  e.preventDefault();
+  go(a.dataset.page);
+}));
+
+function badge(status) {
+  const c = status === 'Active' || status === 'Upcoming' ? 'bg-sage-100 text-sage-700' :
+            status === 'Banned' || status === 'Flagged' ? 'bg-red-100 text-red-700' :
+            status === 'Pending' ? 'bg-amber-100 text-amber-800' : 'bg-stone-100 text-stone-600';
+  return `<span class="pill ${c}">${esc(status)}</span>`;
+}
+
+function renderMembers() {
+  const q = (document.getElementById('memberSearch')?.value || '').toLowerCase();
+  const filter = document.getElementById('memberStatus')?.value || 'all';
+  const list = state.members.filter(m =>
+    (m.name + ' ' + m.email).toLowerCase().includes(q) && (filter === 'all' || m.status === filter)
+  );
+  document.getElementById('membersTable').innerHTML = list.map(m =>
+    `<tr>
+      <td><div class="flex items-center gap-3">
+        <span class="grid h-9 w-9 place-items-center rounded-full bg-sage-100 font-semibold text-sage-700">${esc(m.name.split(' ').map(x=>x[0]).join('').slice(0,2))}</span>
+        <span class="font-semibold">${esc(m.name)}</span>
+      </div></td>
+      <td class="text-stone-500">${esc(m.email)}</td>
+      <td>${esc(m.role)}</td>
+      <td>${badge(m.status)}</td>
+      <td class="text-stone-500">${esc(m.joined)}</td>
+      <td>
+        <button class="btn ${m.status === 'Banned' ? 'btn-soft' : 'btn-red'}" onclick="toggleBan(${m.id})">${m.status === 'Banned' ? 'Unban' : 'Ban'}</button>
+        <button class="btn btn-soft" onclick="deleteMember(${m.id})">Delete</button>
+      </td>
+    </tr>`
+  ).join('') || '<tr><td colspan="6" class="py-10 text-center text-stone-400">No members match this search.</td></tr>';
+  document.getElementById('memberFoot').textContent = `Showing ${list.length} of ${state.members.length} members`;
+}
+
+function toggleBan(id) {
+  const m = state.members.find(x => x.id === id);
+  if (!m) return;
+  const next = m.status === 'Banned' ? 'Active' : 'Banned';
+  if (!confirm(`${next === 'Banned' ? 'Ban' : 'Unban'} ${m.name}?`)) return;
+  m.status = next;
+  log(`${next === 'Banned' ? 'Banned' : 'Unbanned'} member: ${m.name}`);
+  persist();
+}
+
+function deleteMember(id) {
+  const m = state.members.find(x => x.id === id);
+  if (!m || !confirm(`Delete ${m.name} from this demo dashboard?`)) return;
+  state.members = state.members.filter(x => x.id !== id);
+  log(`Deleted member record: ${m.name}`);
+  persist();
+}
+
+function addDemoMember() {
+  const id = Math.max(0, ...state.members.map(m => m.id)) + 1;
+  state.members.unshift({
+    id, name:'New Demo Member', email:`demo${id}@example.com`,
+    role:'Member', status:'Active',
+    joined: new Date().toLocaleDateString('en-US', {month:'short', day:'2-digit', year:'numeric'})
+  });
+  log('Added a demo member');
+  persist();
+}
+
+function renderTrips() {
+  const q = (document.getElementById('tripSearch')?.value || '').toLowerCase();
+  const f = document.getElementById('tripStatus')?.value || 'all';
+  const list = state.trips.filter(t =>
+    (t.title + ' ' + t.mountain + ' ' + t.organizer).toLowerCase().includes(q) &&
+    (f === 'all' || (f === 'Flagged' ? t.flagged : t.status === f))
+  );
+  document.getElementById('tripsTable').innerHTML = list.map(t =>
+    `<tr>
+      <td><div class="font-semibold">${esc(t.title)}</div><div class="mt-1 text-xs text-stone-400">${esc(t.mountain)} ${t.flagged ? '· ⚑ Flagged' : ''}</div></td>
+      <td>${esc(t.organizer)}</td>
+      <td>${esc(t.date)}</td>
+      <td>${t.members} joined</td>
+      <td>${badge(t.flagged ? 'Flagged' : t.status)}</td>
+      <td><button class="btn btn-red" onclick="removeTrip(${t.id})">Remove</button></td>
+    </tr>`
+  ).join('') || '<tr><td colspan="6" class="py-10 text-center text-stone-400">No trips match this filter.</td></tr>';
+  document.getElementById('tripFoot').textContent = `Showing ${list.length} of ${state.trips.length} trips`;
+}
+
+function removeTrip(id) {
+  const t = state.trips.find(x => x.id === id);
+  if (!t || !confirm(`Remove “${t.title}”? This cannot be undone in the demo.`)) return;
+  state.trips = state.trips.filter(x => x.id !== id);
+  state.reports = state.reports.filter(r => r.target !== t.title);
+  log(`Removed trip: ${t.title}`);
+  persist();
+}
+
+function renderReports() {
+  const el = document.getElementById('reportsList');
+  let memberReports = [];
+  let placeSuggestions = [];
+  try {
+    memberReports = JSON.parse(localStorage.getItem('hb-reports') || '[]');
+    placeSuggestions = JSON.parse(localStorage.getItem('hb-place-suggestions') || '[]');
+  } catch(e) {}
+
+  const combined = [
+    ...state.reports,
+    ...memberReports.map(r => ({
+      id: 'member-' + r.id,
+      type: 'Member report · ' + r.type,
+      target: r.title || ('Content #' + r.contentId),
+      by: r.email || 'Community member',
+      date: new Date(r.createdAt).toLocaleString(),
+      detail: r.reason,
+      status: r.status || 'Pending'
+    }))
+  ];
+
+  el.innerHTML = combined.map(r =>
+    `<article class="panel p-5">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <span class="pill ${r.status === 'Pending' ? 'bg-amber-100 text-amber-800' : 'bg-sage-100 text-sage-700'}">${esc(r.status)}</span>
+          <h3 class="mt-3 font-bold">${esc(r.type)}</h3>
+          <p class="mt-1 text-sm text-stone-500">Reported content: <b class="text-stone-700">${esc(r.target)}</b></p>
+        </div>
+        <span class="text-xs text-stone-400">${esc(r.date)}</span>
+      </div>
+      <p class="mt-4 text-sm leading-6 text-stone-600">${esc(r.detail)}</p>
+      <p class="mt-3 text-xs text-stone-400">Submitted by ${esc(r.by)}</p>
+      ${r.status === 'Pending' ? `
+        <div class="mt-5 flex flex-wrap gap-2 border-t border-stone-100 pt-4">
+          <button class="btn btn-soft" onclick="resolveReport(${r.id},'Dismissed')">Dismiss report</button>
+          <button class="btn btn-red" onclick="resolveReport(${r.id},'Action taken')">Mark action taken</button>
+          ${state.trips.some(t => t.title === r.target) ? `<button class="btn btn-green" onclick="removeReportedTrip(${r.id})">Remove reported trip</button>` : ''}
+        </div>` : ''}
+    </article>`
+  ).join('') || '<div class="panel p-10 text-center text-stone-400">All clear — no reports to review.</div>';
+
+  const n = state.reports.filter(r => r.status === 'Pending').length;
+  document.getElementById('reportCount').textContent = n;
+  document.getElementById('pendingMini').textContent = n;
+  document.getElementById('pendingBar').style.width = Math.min(100, n * 9) + '%';
+}
+
+function resolveReport(id, status) {
+  const r = state.reports.find(x => x.id === id);
+  if (!r) return;
+  r.status = status;
+  log(`${status}: report about ${r.target}`);
+  persist();
+}
+
+function removeReportedTrip(id) {
+  const r = state.reports.find(x => x.id === id);
+  if (!r) return;
+  const t = state.trips.find(x => x.title === r.target);
+  if (t) state.trips = state.trips.filter(x => x.id !== t.id);
+  r.status = 'Action taken';
+  log(`Removed reported trip and actioned report: ${r.target}`);
+  persist();
+}
+
+document.getElementById('announcementForm').addEventListener('submit', e => {
+  e.preventDefault();
+  state.announcements.unshift({
+    id: Date.now(),
+    title: document.getElementById('announcementTitle').value.trim(),
+    body: document.getElementById('announcementBody').value.trim(),
+    date: new Date().toLocaleString()
+  });
+  log('Published platform announcement');
+  e.target.reset();
+  persist();
+});
+
+function renderSettings() {
+  document.getElementById('announcementList').innerHTML = state.announcements.map(a =>
+    `<div class="rounded-xl border border-stone-200 p-4">
+      <div class="flex justify-between gap-2">
+        <b class="text-sm">${esc(a.title)}</b>
+        <button class="text-xs text-red-600" onclick="deleteAnnouncement(${a.id})">Remove</button>
+      </div>
+      <p class="mt-2 text-sm leading-6 text-stone-600">${esc(a.body)}</p>
+      <p class="mt-2 text-xs text-stone-400">${esc(a.date)}</p>
+    </div>`
+  ).join('') || '<p class="text-sm text-stone-400">No announcements published yet.</p>';
+
+  document.getElementById('activityList').innerHTML = state.activity.slice(0, 8).map(a =>
+    `<div class="flex gap-3">
+      <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-sage-500"></span>
+      <div>
+        <p class="text-sm">${esc(a.text)}</p>
+        <p class="mt-1 text-xs text-stone-400">${esc(a.time)}</p>
+      </div>
+    </div>`
+  ).join('');
+}
+
+function deleteAnnouncement(id) {
+  state.announcements = state.announcements.filter(a => a.id !== id);
+  log('Removed an announcement');
+  persist();
+}
+
+function renderRecent() {
+  document.getElementById('recentMembers').innerHTML = state.members.slice(0, 4).map(m =>
+    `<tr>
+      <td><div class="font-semibold">${esc(m.name)}</div><div class="mt-1 text-xs text-stone-400">${esc(m.email)}</div></td>
+      <td class="text-stone-500">${esc(m.joined)}</td>
+      <td>${badge(m.status)}</td>
+    </tr>`
+  ).join('');
+}
+
+function renderAll() {
+  renderMembers();
+  renderTrips();
+  renderReports();
+  renderSettings();
+  renderRecent();
+  document.getElementById('kUsers').textContent = state.members.length.toLocaleString();
+  document.getElementById('kTrips').textContent = state.trips.filter(t => t.date.startsWith('2026-10')).length;
+  document.getElementById('kJoins').textContent = state.trips.reduce((n, t) => n + t.members, 0).toLocaleString();
+}
+
+let growthChart, mountainChart;
+
+function drawCharts() {
+  const base = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {legend: {display: false}},
+    scales: {
+      x: {grid: {display: false}, ticks: {color: '#8b9085', font: {size: 11}}},
+      y: {beginAtZero: true, grid: {color: '#f0f1ed'}, ticks: {color: '#8b9085', font: {size: 11}}}
+    }
+  };
+
+  growthChart = new Chart(document.getElementById('growthChart'), {
+    type: 'line',
+    data: {
+      labels: ['May','Jun','Jul','Aug','Sep','Oct'],
+      datasets: [{
+        data: [84,102,128,116,154,181],
+        borderColor: '#707d57',
+        backgroundColor: 'rgba(135,147,108,.14)',
+        fill: true,
+        tension: .38,
+        borderWidth: 2.5,
+        pointRadius: 3,
+        pointBackgroundColor: '#707d57'
+      }]
+    },
+    options: {
+      ...base,
+      scales: {
+        ...base.scales,
+        y: {...base.scales.y, ticks: {...base.scales.y.ticks, stepSize: 50}}
+      }
+    }
+  });
+
+  mountainChart = new Chart(document.getElementById('mountainChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Mount Popa','Shan Hills','Zwegabin','Pyin Oo Lwin','Victoria'],
+      datasets: [{
+        data: [28,22,17,12,8],
+        backgroundColor: ['#596547','#788665','#9eaa8b','#c3cbb7','#dce1d5'],
+        borderRadius: 6,
+        barThickness: 22
+      }]
+    },
+    options: {
+      ...base,
+      indexAxis: 'y',
+      scales: {
+        x: {...base.scales.x, grid: {color: '#f0f1ed'}},
+        y: {...base.scales.y, grid: {display: false}}
+      }
+    }
+  });
+}
+
+function updateGrowth() {
+  const n = Number(document.getElementById('growthRange').value);
+  const labels = ['Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'];
+  const values = [58,72,81,76,95,88,84,102,128,116,154,181];
+  growthChart.data.labels = labels.slice(-n);
+  growthChart.data.datasets[0].data = values.slice(-n);
+  growthChart.update();
+}
+
+function exportData() {
+  const data = {exportedAt: new Date().toISOString(), members: state.members, trips: state.trips, reports: state.reports};
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'hiking-buddy-admin-overview.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const sidebar = document.getElementById('sidebar');
+const scrim = document.getElementById('scrim');
+
+function closeMenu() {
+  sidebar.classList.add('-translate-x-full');
+  sidebar.classList.add('lg:translate-x-0');
+  scrim.style.display = 'none';
+}
+
+document.getElementById('menuBtn').onclick = () => {
+  sidebar.classList.remove('-translate-x-full');
+  scrim.style.display = 'block';
+};
+scrim.onclick = closeMenu;
+
+// Initialize dashboard if already logged in
+if (sessionStorage.getItem('hb-admin-logged-in') === 'true') {
+  initDashboard();
+}
+</script>
+</body>
+</html>
