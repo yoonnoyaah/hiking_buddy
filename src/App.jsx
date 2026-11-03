@@ -48,6 +48,23 @@ const mapApiUser = (apiUser) => ({
   status: apiUser.status
 });
 
+const fetchMountains = async () => {
+  const response = await fetch('http://127.0.0.1:8000/api/mountains', {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Unable to load mountains.');
+  }
+
+  const data = await response.json();
+
+  return data.mountains;
+};
+
 const regions = ['All regions', 'Yangon', 'Mandalay', 'Bagan'];
 const levels = ['All levels', 'Easy', 'Moderate', 'Hard'];
 
@@ -1006,61 +1023,162 @@ function Home({ trips, user, onJoin, joined }) {
   );
 }
 
+
 // --------------------------------------------------
 // TRAILS PAGE
-// Mountain matching + trip creation + group trips.
+// Laravel database + mountain matching + trip creation
 // --------------------------------------------------
 
-function TrailsPage({ trips, onJoin, joined, user, setTrips, onDeleteTrip }) {
+function TrailsPage({
+  trips,
+  onJoin,
+  joined,
+  user,
+  setTrips,
+  onDeleteTrip,
+  mountains,
+  mountainsLoading,
+  mountainsError
+}) {
   const params = new URLSearchParams(window.location.search);
 
-  const [region, setRegion] = useState(params.get('region') || 'All regions');
+  // -----------------------------------------------
+  // STATES
+  // -----------------------------------------------
+
+  const [region, setRegion] = useState(
+    params.get('region') || 'All regions'
+  );
+
   const [difficulty, setDifficulty] = useState('All levels');
   const [query, setQuery] = useState('');
   const [fitness, setFitness] = useState('Intermediate');
   const [pace, setPace] = useState('Steady');
-  const [showMatches, setShowMatches] = useState(params.get('match') === 'true');
-  const [showForm, setShowForm] = useState(params.get('create') === 'true');
 
-  const approvedPlaces = stored('hb-approved-places', []);
-  const allTrails = [...trails, ...approvedPlaces];
+  const [showMatches, setShowMatches] = useState(
+    params.get('match') === 'true'
+  );
+
+  const [showForm, setShowForm] = useState(
+    params.get('create') === 'true'
+  );
+
+
+  // -----------------------------------------------
+  // CONVERT DATABASE DATA TO TRAIL CARD FORMAT
+  // -----------------------------------------------
+
+  const databaseTrails = (mountains || []).map(mountain => ({
+    id: mountain.id,
+    name: mountain.name,
+    region: mountain.region,
+    difficulty: mountain.difficulty || 'Moderate',
+    distance: mountain.distance || 'Not specified',
+    duration: mountain.duration || 'Not specified',
+    pace: mountain.pace || 'Steady',
+    description: mountain.description || '',
+    image: mountain.image || imgFallback,
+    elevation: mountain.elevation || 'Not specified'
+  }));
+
+
+  // -----------------------------------------------
+  // AVAILABLE REGIONS
+  // -----------------------------------------------
 
   const availableRegions = [
-    ...new Set([...regions, ...approvedPlaces.map(place => place.region)])
+    ...new Set([
+      'All regions',
+      ...regions.filter(item => item !== 'All regions'),
+      ...databaseTrails.map(trail => trail.region).filter(Boolean)
+    ])
   ];
 
-  const filteredTrails = allTrails.filter(trail =>
-    (region === 'All regions' || trail.region === region) &&
-    (difficulty === 'All levels' || trail.difficulty === difficulty) &&
+
+  // -----------------------------------------------
+  // FILTER MOUNTAINS
+  // -----------------------------------------------
+
+  const filteredTrails = databaseTrails.filter(trail =>
+    (
+      region === 'All regions' ||
+      trail.region === region
+    ) &&
+    (
+      difficulty === 'All levels' ||
+      trail.difficulty === difficulty
+    ) &&
     trail.name.toLowerCase().includes(query.toLowerCase())
   );
+
+
+  // -----------------------------------------------
+  // PERSONALised MOUNTAIN MATCHING
+  // -----------------------------------------------
 
   const matchedTrails = filteredTrails.filter(trail =>
     (
       fitness === 'Beginner'
-        ? trail.difficulty === 'Easy' || trail.difficulty === 'Moderate'
+        ? trail.difficulty === 'Easy' ||
+          trail.difficulty === 'Moderate'
+
         : fitness === 'Intermediate'
           ? trail.difficulty !== 'Hard'
+
           : true
     ) &&
-    (pace === 'Any pace' || trail.pace === pace)
+    (
+      pace === 'Any pace' ||
+      trail.pace === pace
+    )
   );
 
-  const visibleTrails = showMatches ? matchedTrails : filteredTrails;
+  const visibleTrails = showMatches
+    ? matchedTrails
+    : filteredTrails;
+
+
+  // -----------------------------------------------
+  // CLEAR FILTERS
+  // -----------------------------------------------
+
+  const clearFilters = () => {
+    setRegion('All regions');
+    setDifficulty('All levels');
+    setQuery('');
+    setFitness('Intermediate');
+    setPace('Steady');
+    setShowMatches(false);
+  };
+
+
+  // -----------------------------------------------
+  // PAGE
+  // -----------------------------------------------
 
   return (
     <main className="container-shell page-pad">
+
+      {/* PAGE INTRODUCTION */}
+
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+
         <div className="max-w-2xl">
-          <p className="eyebrow">YOUR NEXT OUTDOOR DAY</p>
+
+          <p className="eyebrow">
+            YOUR NEXT OUTDOOR DAY
+          </p>
 
           <h1 className="page-title">
-            Find your kind of <span className="text-sage-600">wild.</span>
+            Find your kind of{' '}
+            <span className="text-sage-600">wild.</span>
           </h1>
 
           <p className="mt-4 leading-7 text-stone-500">
-            Choose a mountain to see its group trips. Find a hiking buddy or organise your own adventure.
+            Choose a mountain to see its group trips.
+            Find a hiking buddy or organise your own adventure.
           </p>
+
         </div>
 
         <button
@@ -1076,22 +1194,34 @@ function TrailsPage({ trips, onJoin, joined, user, setTrips, onDeleteTrip }) {
         >
           {showForm ? 'Close form' : '＋ Post your trip'}
         </button>
+
       </div>
+
+
+      {/* POST TRIP FORM */}
 
       {showForm && (
         <div className="mt-7 rounded-3xl border border-stone-200 bg-white p-5 shadow-soft sm:p-8">
+
           <PostTrip
             user={user}
             trips={trips}
             setTrips={setTrips}
+            mountains={mountains}
             onCancel={() => setShowForm(false)}
-          />
+            />
+
         </div>
       )}
 
+
+      {/* SEARCH AND FILTERS */}
+
       <div className="mt-7 grid gap-3 rounded-2xl border border-stone-200 bg-white p-4 md:grid-cols-[1fr_220px_200px]">
+
         <label className="input-wrap">
           <Search size={17} />
+
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
@@ -1106,7 +1236,9 @@ function TrailsPage({ trips, onJoin, joined, user, setTrips, onDeleteTrip }) {
           onChange={e => setRegion(e.target.value)}
         >
           {availableRegions.map(item => (
-            <option key={item}>{item}</option>
+            <option key={item} value={item}>
+              {item}
+            </option>
           ))}
         </select>
 
@@ -1117,34 +1249,56 @@ function TrailsPage({ trips, onJoin, joined, user, setTrips, onDeleteTrip }) {
           onChange={e => setDifficulty(e.target.value)}
         >
           {levels.map(item => (
-            <option key={item}>{item}</option>
+            <option key={item} value={item}>
+              {item}
+            </option>
           ))}
         </select>
+
       </div>
 
+
+      {/* PERSONALised MOUNTAIN MATCHING */}
+
       <section className="mt-6 rounded-2xl bg-sage-50 p-5">
+
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+
           <div>
-            <p className="eyebrow">PERSONALISED DISCOVERY</p>
+
+            <p className="eyebrow">
+              PERSONALISED DISCOVERY
+            </p>
+
             <h2 className="mt-1 text-xl font-bold text-ink">
               Find mountains that match you
             </h2>
+
             <p className="mt-1 text-sm text-stone-600">
               Adjust your preferences to find suitable trails.
             </p>
+
           </div>
 
           <button
             onClick={() => setShowMatches(!showMatches)}
             className="btn-secondary"
           >
-            {showMatches ? 'Show all mountains' : 'Show matching mountains'}
+            {showMatches
+              ? 'Show all mountains'
+              : 'Show matching mountains'
+            }
+
             <Heart size={15} />
           </button>
+
         </div>
 
+
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
+
           <label className="field-label">
+
             Fitness level
 
             <select
@@ -1159,9 +1313,12 @@ function TrailsPage({ trips, onJoin, joined, user, setTrips, onDeleteTrip }) {
               <option>Intermediate</option>
               <option>Advanced</option>
             </select>
+
           </label>
 
+
           <label className="field-label">
+
             Preferred pace
 
             <select
@@ -1177,104 +1334,223 @@ function TrailsPage({ trips, onJoin, joined, user, setTrips, onDeleteTrip }) {
               <option>Steady</option>
               <option>Fast</option>
             </select>
+
           </label>
+
         </div>
+
       </section>
 
+
+      {/* MOUNTAIN LIST */}
+
       <div className="mt-8 flex items-center justify-between gap-3">
+
         <div>
+
           <h2 className="text-xl font-bold text-ink">
-            {showMatches ? 'Mountains picked for you' : 'Explore mountains'}
+            {showMatches
+              ? 'Mountains picked for you'
+              : 'Explore mountains'
+            }
           </h2>
 
           <p className="mt-1 text-sm text-stone-500">
             {visibleTrails.length} mountains found
+            · Select one to view its group trips
           </p>
+
         </div>
 
         <span className="hidden items-center gap-2 text-xs text-stone-400 sm:flex">
-          <SlidersHorizontal size={14} /> Filters applied
+          <SlidersHorizontal size={14} />
+          Filters applied
         </span>
+
       </div>
 
-      <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {visibleTrails.map(trail => (
-          <TrailCard key={trail.id} trail={trail} />
-        ))}
-      </div>
 
-      {visibleTrails.length === 0 && (
-        <div className="empty-state">
-          <Mountain size={30} />
-          <h3 className="mt-3 font-bold text-ink">No mountains match yet</h3>
-          <p className="mt-2 text-sm text-stone-500">
-            Try another region, difficulty or matching preference.
+      {/* LOADING MESSAGE */}
+
+      {mountainsLoading && (
+        <div className="mt-6 rounded-2xl bg-sage-50 p-8 text-center">
+
+          <p className="font-semibold text-ink">
+            Loading mountains...
           </p>
 
-          <button
-            className="btn-secondary mt-4"
-            onClick={() => {
-              setRegion('All regions');
-              setDifficulty('All levels');
-              setQuery('');
-              setShowMatches(false);
-            }}
-          >
-            Clear filters
-          </button>
+          <p className="mt-2 text-sm text-stone-500">
+            Please wait while we retrieve mountain data.
+          </p>
+
         </div>
       )}
 
+
+      {/* ERROR MESSAGE */}
+
+      {!mountainsLoading && mountainsError && (
+        <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6">
+
+          <h3 className="font-bold text-red-700">
+            Unable to load mountains
+          </h3>
+
+          <p className="mt-2 text-sm text-red-600">
+            {mountainsError}
+          </p>
+
+          <p className="mt-2 text-sm text-red-600">
+            Check whether the Laravel server is running.
+          </p>
+
+        </div>
+      )}
+
+
+      {/* MOUNTAIN CARDS */}
+
+      {!mountainsLoading && !mountainsError && (
+
+        <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+
+          {visibleTrails.map(trail => (
+            <TrailCard
+              key={trail.id}
+              trail={trail}
+            />
+          ))}
+
+        </div>
+
+      )}
+
+
+      {/* EMPTY MOUNTAIN RESULTS */}
+
+      {!mountainsLoading &&
+        !mountainsError &&
+        visibleTrails.length === 0 && (
+
+          <div className="empty-state">
+
+            <Mountain size={30} />
+
+            <h3 className="mt-3 font-bold text-ink">
+              No mountains found
+            </h3>
+
+            <p className="mt-2 text-sm text-stone-500">
+              Try another region, difficulty or matching preference.
+            </p>
+
+            <button
+              className="btn-secondary mt-4"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </button>
+
+          </div>
+
+      )}
+
+
+      {/* UPCOMING GROUP TRIPS */}
+
       <section className="mt-12">
-        <p className="eyebrow">COMMUNITY PLANS</p>
-        <h2 className="section-title">Upcoming group trips</h2>
+
+        <p className="eyebrow">
+          COMMUNITY PLANS
+        </p>
+
+        <h2 className="section-title">
+          Upcoming group trips
+        </h2>
 
         <p className="mt-2 text-sm text-stone-500">
           Discover trips created by other hikers.
         </p>
 
+
         <div className="mt-6 grid gap-5 lg:grid-cols-2">
-          {trips.length ? trips.map(trip => (
-            <TripCard
-              key={trip.id}
-              trip={trip}
-              user={user}
-              onJoin={onJoin}
-              joined={joined.includes(trip.id)}
-              onDelete={onDeleteTrip}
-            />
-          )) : (
+
+          {trips.length ? (
+
+            trips.map(trip => (
+
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                user={user}
+                onJoin={onJoin}
+                joined={joined.includes(trip.id)}
+                onDelete={onDeleteTrip}
+              />
+
+            ))
+
+          ) : (
+
             <div className="empty-state lg:col-span-2">
+
               <TentTree size={28} />
+
               <p className="mt-3 text-sm text-stone-500">
                 No group trips have been posted yet.
               </p>
+
             </div>
+
           )}
+
         </div>
+
       </section>
+
     </main>
   );
 }
 
-// --------------------------------------------------
-// TRIP CREATION FORM
-// --------------------------------------------------
 
-function PostTrip({ user, trips, setTrips, onCancel }) {
+ // --------------------------------------------------
+ // TRIP CREATION FORM
+ // --------------------------------------------------
+
+function PostTrip({ user, trips, setTrips, mountains = [], onCancel }) {
   const nav = useNavigate();
 
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const defaultDate = tomorrow.toISOString().slice(0, 10);
+  const defaultDate = [
+    tomorrow.getFullYear(),
+    String(tomorrow.getMonth() + 1).padStart(2, '0'),
+    String(tomorrow.getDate()).padStart(2, '0')
+  ].join('-');
 
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const addMountainOption = '＋ Add a new mountain / trail';
+  const addRegionOption = '＋ Add a new region';
+
+  const availableMountains =
+  mountains && mountains.length > 0
+    ? mountains
+    : trails;
+
+  const availableRegions = [
+    ...new Set([
+      ...regions.slice(1),
+      ...availableMountains.map(mountain => mountain.region).filter(Boolean)
+    ])
+  ];
 
   const [form, setForm] = useState({
     title: '',
-    mountain: trails[0]?.name || 'Mount Popa',
-    region: trails[0]?.region || 'Bagan',
+    mountain: '',
+    region: regions[1] || '',
     date: defaultDate,
     time: '07:00',
     difficulty: 'Moderate',
@@ -1291,22 +1567,71 @@ function PostTrip({ user, trips, setTrips, onCancel }) {
     customRegion: ''
   });
 
+  // Select the first database mountain when the records finish loading
+  useEffect(() => {
+    if (availableMountains.length > 0) {
+      setForm(current => {
+        if (current.mountain) return current;
+
+        return {
+          ...current,
+          mountain: availableMountains[0].name,
+          region: availableMountains[0].region || current.region
+        };
+      });
+    }
+  }, [mountains]);
+
   const change = e => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+
+    setForm(current => ({
+      ...current,
+      [name]: value
+    }));
   };
 
-  const submit = e => {
+  const changeMountain = e => {
+    const value = e.target.value;
+
+    if (value === addMountainOption) {
+      setForm(current => ({
+        ...current,
+        mountain: value,
+        customMountain: ''
+      }));
+      return;
+    }
+
+    const selected = availableMountains.find(
+      mountain => mountain.name === value
+    );
+
+    setForm(current => ({
+      ...current,
+      mountain: value,
+      region: selected?.region || current.region
+    }));
+  };
+
+  const submit = async e => {
     e.preventDefault();
+
+    if (submitting) return;
 
     if (!user) {
       nav('/login?next=/trails');
       return;
     }
 
-    if (new Date(form.date + 'T' + form.time) < new Date()) {
+    const token = getAuthToken();
+
+    if (!token) {
+      setError('Your login session has expired. Please log in again.');
+      return;
+    }
+
+    if (new Date(form.date + 'T' + form.time) <= new Date()) {
       setError('Choose a future date and time for the trip.');
       return;
     }
@@ -1316,45 +1641,133 @@ function PostTrip({ user, trips, setTrips, onCancel }) {
       return;
     }
 
-    const finalMountain = form.customMountain.trim() || form.mountain;
-    const finalRegion = form.customRegion.trim() || form.region;
+    const isCustomMountain = form.mountain === addMountainOption;
+    const isCustomRegion = form.region === addRegionOption;
 
-    if (form.customMountain.trim() || form.customRegion.trim()) {
-      const suggestions = stored('hb-place-suggestions', []);
+    const finalMountain = isCustomMountain
+      ? form.customMountain.trim()
+      : form.mountain;
 
-      suggestions.unshift({
-        id: Date.now() + 1,
-        name: finalMountain,
-        region: finalRegion,
-        difficulty: form.difficulty,
-        description: form.description,
-        submittedBy: user.name,
-        email: user.email,
-        status: 'Pending'
-      });
+    const finalRegion = isCustomRegion
+      ? form.customRegion.trim()
+      : form.region;
 
-      save('hb-place-suggestions', suggestions);
+    if (!finalMountain || !finalRegion) {
+      setError('Please select or enter a mountain and region.');
+      return;
     }
 
-    const trip = {
-      ...form,
-      mountain: finalMountain,
+    const selectedMountain = (mountains || []).find(
+  mountain =>
+    mountain.name.toLowerCase() === finalMountain.toLowerCase() &&
+    mountain.region.toLowerCase() === finalRegion.toLowerCase()
+);
+
+    if (!isCustomMountain && !isCustomRegion && !selectedMountain) {
+      setError('Please select a valid mountain or add a new one.');
+      return;
+    }
+
+    // Prepare the data using Laravel's database field names
+    const payload = {
+      mountain_id: selectedMountain?.id || null,
+      mountain_name: finalMountain,
+      title: form.title.trim(),
       region: finalRegion,
-      id: Date.now(),
-      organizer: user.name,
-      joined: 0,
+      difficulty: form.difficulty,
+      trip_date: form.date,
+      trip_time: form.time,
+      pace: form.pace,
+      fitness: form.fitness,
       spots: Number(form.spots),
-      createdBy: user.email
+      vehicle: form.vehicle,
+      meeting: form.meeting.trim(),
+      telegram: form.telegram.trim(),
+      phone: form.phone.trim(),
+      emergency: form.emergency.trim(),
+      description: form.description.trim()
     };
 
-    const updated = [trip, ...trips];
+    setSubmitting(true);
+    setError('');
 
-    setTrips(updated);
-    save('hb-trips', updated);
+    try {
+      const response = await fetch(`${API_BASE}/group-trips`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
 
-    if (onCancel) onCancel();
+      const data = await response.json();
 
-    nav('/trails');
+      if (!response.ok) {
+        const validationErrors = data.errors
+          ? Object.values(data.errors).flat().join(' ')
+          : '';
+
+        throw new Error(
+          validationErrors ||
+          data.message ||
+          'Unable to publish your trip.'
+        );
+      }
+
+      const savedTrip = data.trip;
+
+      // Convert Laravel response into the format used by TripCard
+      const newTrip = {
+        ...savedTrip,
+        id: savedTrip.id,
+        mountain: savedTrip.mountain_name,
+        date: savedTrip.trip_date,
+        time: savedTrip.trip_time?.slice(0, 5),
+        organizer: savedTrip.organizer?.name || user.name,
+        joined: savedTrip.joined_count || 0,
+        createdBy: user.email,
+        spots: Number(savedTrip.spots)
+      };
+
+      // Update the current React page
+      setTrips(current => [newTrip, ...current]);
+
+      // Keep temporary local cache in sync with the current page
+      // Laravel remains the main database.
+      if (typeof save === 'function') {
+        save('hb-trips', [newTrip, ...(trips || [])]);
+      }
+
+      // Keep the existing custom-place suggestion feature temporarily.
+      // The permanent database suggestion system will be added separately.
+      if (isCustomMountain || isCustomRegion) {
+        const suggestions = stored('hb-place-suggestions', []);
+
+        suggestions.unshift({
+          id: Date.now(),
+          name: finalMountain,
+          region: finalRegion,
+          difficulty: form.difficulty,
+          description: form.description,
+          submittedBy: user.name,
+          email: user.email,
+          status: 'Pending'
+        });
+
+        save('hb-place-suggestions', suggestions);
+      }
+
+      if (onCancel) onCancel();
+
+      nav('/trails');
+
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -1395,20 +1808,10 @@ function PostTrip({ user, trips, setTrips, onCancel }) {
             label="Mountain / trail"
             name="mountain"
             value={form.mountain}
-            onChange={e => {
-              const selected = trails.find(t => t.name === e.target.value);
-
-              setForm({
-                ...form,
-                mountain: e.target.value,
-                region: selected?.region || form.region
-              });
-            }}
+            onChange={changeMountain}
             options={[
-              ...new Set([
-                ...trails.map(t => t.name),
-                '＋ Add a new mountain / trail'
-              ])
+              ...availableMountains.map(mountain => mountain.name),
+              addMountainOption
             ]}
           />
 
@@ -1417,17 +1820,20 @@ function PostTrip({ user, trips, setTrips, onCancel }) {
             name="region"
             value={form.region}
             onChange={change}
-            options={[...regions.slice(1), '＋ Add a new region']}
+            options={[
+              ...availableRegions,
+              addRegionOption
+            ]}
           />
 
-          {(form.mountain === '＋ Add a new mountain / trail' ||
-            form.region === '＋ Add a new region') && (
+          {(form.mountain === addMountainOption ||
+            form.region === addRegionOption) && (
             <div className="form-grid col-span-full rounded-xl bg-sage-50 p-4">
               <p className="field-label col-span-full">
                 Add a place not listed above
               </p>
 
-              {form.mountain === '＋ Add a new mountain / trail' && (
+              {form.mountain === addMountainOption && (
                 <Field
                   label="New mountain / trail name"
                   name="customMountain"
@@ -1438,7 +1844,7 @@ function PostTrip({ user, trips, setTrips, onCancel }) {
                 />
               )}
 
-              {form.region === '＋ Add a new region' && (
+              {form.region === addRegionOption && (
                 <Field
                   label="New region / township"
                   name="customRegion"
@@ -1513,7 +1919,12 @@ function PostTrip({ user, trips, setTrips, onCancel }) {
             name="vehicle"
             value={form.vehicle}
             onChange={change}
-            options={['Car pool', 'Own transport', 'Bus / shared taxi', 'Hiking only']}
+            options={[
+              'Car pool',
+              'Own transport',
+              'Bus / shared taxi',
+              'Hiking only'
+            ]}
           />
 
           <Field
@@ -1566,7 +1977,10 @@ function PostTrip({ user, trips, setTrips, onCancel }) {
         </div>
 
         {error && (
-          <p role="alert" className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <p
+            role="alert"
+            className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700"
+          >
             {error}
           </p>
         )}
@@ -1582,13 +1996,19 @@ function PostTrip({ user, trips, setTrips, onCancel }) {
                 type="button"
                 onClick={onCancel}
                 className="btn-secondary"
+                disabled={submitting}
               >
                 Cancel
               </button>
             )}
 
-            <button className="btn-primary" type="submit">
-              Publish trip <ArrowRight size={16} />
+            <button
+              className="btn-primary"
+              type="submit"
+              disabled={submitting}
+            >
+              {submitting ? 'Publishing...' : 'Publish trip'}
+              {!submitting && <ArrowRight size={16} />}
             </button>
           </div>
         </div>
@@ -1596,6 +2016,7 @@ function PostTrip({ user, trips, setTrips, onCancel }) {
     </section>
   );
 }
+
 
 // --------------------------------------------------
 // REUSABLE FIELD
@@ -1640,22 +2061,83 @@ function Field({
   );
 }
 
+
 // --------------------------------------------------
 // TRAIL DETAIL PAGE
 // --------------------------------------------------
 
-function TrailDetail({ trips, onJoin, joined, user, onDeleteTrip }) {
+function TrailDetail({
+  trips,
+  onJoin,
+  joined,
+  user,
+  onDeleteTrip,
+  mountains,
+  mountainsLoading,
+  mountainsError
+}) {
   const { id } = useParams();
 
-  const trail = [...trails, ...stored('hb-approved-places', [])]
-    .find(item => String(item.id) === String(id));
+  // Show loading state
+  if (mountainsLoading) {
+    return (
+      <main className="container-shell page-pad">
+        <div className="empty-state">
+          <p className="text-stone-500">
+            Loading mountain details...
+          </p>
+        </div>
+      </main>
+    );
+  }
 
-  if (!trail) return <NotFound />;
+  // Show API error
+  if (mountainsError) {
+    return (
+      <main className="container-shell page-pad">
+        <div className="empty-state">
+          <p className="text-red-500">
+            Unable to load mountain details.
+            Please try again later.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
-  const related = trips.filter(
+  // Find mountain from Laravel database
+  const mountain = (mountains || []).find(
+    item => String(item.id) === String(id)
+  );
+
+  if (!mountain) {
+    return <NotFound />;
+  }
+
+  // Convert database fields into the existing UI format
+  const trail = {
+    ...mountain,
+    distance: mountain.distance || 'Not specified',
+    duration: mountain.duration || 'Not specified',
+    difficulty: mountain.difficulty || 'Moderate',
+    description: mountain.description || '',
+    image: mountain.image || imgFallback
+  };
+
+  // Match group trips with this mountain
+  const normalizeMountainName = name =>
+    String(name || '')
+      .trim()
+      .replace(/\s+Trail$/i, '')
+      .toLowerCase();
+
+  const related = (trips || []).filter(
     trip =>
-      trip.mountain === trail.name ||
-      trip.title?.toLowerCase().includes(trail.name.toLowerCase())
+      normalizeMountainName(trip.mountain) ===
+        normalizeMountainName(trail.name) ||
+      String(trip.title || '')
+        .toLowerCase()
+        .includes(String(trail.name).toLowerCase())
   );
 
   return (
@@ -1666,7 +2148,7 @@ function TrailDetail({ trips, onJoin, joined, user, onDeleteTrip }) {
 
       <div className="mt-5 overflow-hidden rounded-3xl bg-white shadow-soft">
         <img
-          src={trail.image || imgFallback}
+          src={trail.image}
           alt={trail.name}
           className="h-72 w-full object-cover md:h-[420px]"
         />
@@ -1681,9 +2163,20 @@ function TrailDetail({ trips, onJoin, joined, user, onDeleteTrip }) {
           </p>
 
           <div className="mt-6 flex flex-wrap gap-5 text-sm text-stone-500">
-            <span><Footprints size={15} className="mr-1 inline" />{trail.distance}</span>
-            <span><Clock3 size={15} className="mr-1 inline" />{trail.duration}</span>
-            <span><Gauge size={15} className="mr-1 inline" />{trail.difficulty}</span>
+            <span>
+              <Footprints size={15} className="mr-1 inline" />
+              {trail.distance}
+            </span>
+
+            <span>
+              <Clock3 size={15} className="mr-1 inline" />
+              {trail.duration}
+            </span>
+
+            <span>
+              <Gauge size={15} className="mr-1 inline" />
+              {trail.difficulty}
+            </span>
           </div>
 
           <Link to="/trails?create=true" className="btn-primary mt-6">
@@ -1693,25 +2186,30 @@ function TrailDetail({ trips, onJoin, joined, user, onDeleteTrip }) {
       </div>
 
       <section className="mt-10">
-        <h2 className="text-xl font-bold text-ink">Trips on this trail</h2>
+        <h2 className="text-xl font-bold text-ink">
+          Trips on this trail
+        </h2>
 
         <p className="mt-2 text-sm text-stone-500">
           Find group trips created for this mountain.
         </p>
 
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
-          {related.length ? related.map(trip => (
-            <TripCard
-              key={trip.id}
-              trip={trip}
-              user={user}
-              onJoin={onJoin}
-              joined={joined.includes(trip.id)}
-              onDelete={onDeleteTrip}
-            />
-          )) : (
+          {related.length ? (
+            related.map(trip => (
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                user={user}
+                onJoin={onJoin}
+                joined={joined.includes(trip.id)}
+                onDelete={onDeleteTrip}
+              />
+            ))
+          ) : (
             <div className="empty-state lg:col-span-2">
               <TentTree size={28} />
+
               <p className="mt-3 text-sm text-stone-500">
                 No trips are posted for this trail yet.
               </p>
@@ -1722,6 +2220,7 @@ function TrailDetail({ trips, onJoin, joined, user, onDeleteTrip }) {
     </main>
   );
 }
+
 
 // --------------------------------------------------
 // PROFILE PAGE
@@ -2552,6 +3051,10 @@ function NotFound() {
 // --------------------------------------------------
 
 export default function App() {
+  // -----------------------------------------------
+  // STATES
+  // -----------------------------------------------
+
   const [user, setUser] = useState(() => stored('hb-user', null));
 
   const [trips, setTrips] = useState(
@@ -2562,46 +3065,109 @@ export default function App() {
     () => stored('hb-joined', [])
   );
 
+  // Mountain data from Laravel
+  const [mountains, setMountains] = useState([]);
+  const [mountainsLoading, setMountainsLoading] = useState(true);
+  const [mountainsError, setMountainsError] = useState('');
+
+
+  // -----------------------------------------------
+  // SAVE TRIPS TO LOCAL STORAGE
+  // -----------------------------------------------
+
   useEffect(() => {
     save('hb-trips', trips);
   }, [trips]);
 
-  // Verify the saved login token with Laravel
-useEffect(() => {
-  const token = getAuthToken();
 
-  if (!token) {
-    localStorage.removeItem('hb-user');
-    setUser(null);
-    return;
-  }
+  // -----------------------------------------------
+  // VERIFY LOGIN TOKEN WITH LARAVEL
+  // -----------------------------------------------
 
-  fetch(`${API_BASE}/user`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
-  })
-    .then(async response => {
-      if (!response.ok) {
-        throw new Error('Session expired');
-      }
+  useEffect(() => {
+    const token = getAuthToken();
 
-      return response.json();
-    })
-    .then(data => {
-      const currentUser = mapApiUser(data.user);
-
-      localStorage.setItem('hb-user', JSON.stringify(currentUser));
-      setUser(currentUser);
-    })
-    .catch(() => {
-      localStorage.removeItem('hb-token');
+    if (!token) {
       localStorage.removeItem('hb-user');
       setUser(null);
-    });
-}, []);
+      return;
+    }
+
+    fetch(`${API_BASE}/user`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+      .then(async response => {
+        if (!response.ok) {
+          throw new Error('Session expired');
+        }
+
+        return response.json();
+      })
+      .then(data => {
+        const currentUser = mapApiUser(data.user);
+
+        localStorage.setItem(
+          'hb-user',
+          JSON.stringify(currentUser)
+        );
+
+        setUser(currentUser);
+      })
+      .catch(() => {
+        localStorage.removeItem('hb-token');
+        localStorage.removeItem('hb-user');
+        setUser(null);
+      });
+
+  }, []);
+
+
+  // -----------------------------------------------
+  // LOAD MOUNTAINS FROM LARAVEL DATABASE
+  // -----------------------------------------------
+
+  useEffect(() => {
+    const loadMountains = async () => {
+      try {
+        setMountainsLoading(true);
+        setMountainsError('');
+
+        const response = await fetch(`${API_BASE}/mountains`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Unable to load mountains.');
+        }
+
+        const data = await response.json();
+
+        setMountains(data.mountains);
+
+      } catch (error) {
+        console.error('Mountain loading error:', error);
+        setMountainsError(error.message);
+
+      } finally {
+        setMountainsLoading(false);
+      }
+    };
+
+    loadMountains();
+
+  }, []);
+
+
+  // -----------------------------------------------
+  // JOIN TRIP
+  // -----------------------------------------------
 
   const join = id => {
     if (!user) {
@@ -2631,6 +3197,11 @@ useEffect(() => {
     );
   };
 
+
+  // -----------------------------------------------
+  // DELETE OWN TRIP
+  // -----------------------------------------------
+
   const deleteTrip = id => {
     const trip = trips.find(item => item.id === id);
 
@@ -2649,33 +3220,47 @@ useEffect(() => {
     save('hb-trips', updated);
   };
 
-  const logout = async () => {
-  const token = getAuthToken();
 
-  try {
-    if (token) {
-      await fetch(`${API_BASE}/logout`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
+  // -----------------------------------------------
+  // LOGOUT
+  // -----------------------------------------------
+
+  const logout = async () => {
+    const token = getAuthToken();
+
+    try {
+      if (token) {
+        await fetch(`${API_BASE}/logout`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+
+    } catch (error) {
+      console.error('Logout request failed:', error);
+
+    } finally {
+      localStorage.removeItem('hb-token');
+      localStorage.removeItem('hb-user');
+      setUser(null);
     }
-  } catch (error) {
-    console.error('Logout request failed:', error);
-  } finally {
-    localStorage.removeItem('hb-token');
-    localStorage.removeItem('hb-user');
-    setUser(null);
-  }
-};
+  };
+
+
+  // -----------------------------------------------
+  // PAGE ROUTES
+  // -----------------------------------------------
 
   return (
     <>
       <Header user={user} onLogout={logout} />
 
       <Routes>
+
+        {/* HOME */}
         <Route
           path="/"
           element={
@@ -2688,11 +3273,17 @@ useEffect(() => {
           }
         />
 
+
+        {/* COMMUNITY */}
         <Route
           path="/community"
-          element={<Community user={user} />}
+          element={
+            <Community user={user} />
+          }
         />
 
+
+        {/* TRAILS */}
         <Route
           path="/trails"
           element={
@@ -2703,29 +3294,44 @@ useEffect(() => {
               user={user}
               setTrips={setTrips}
               onDeleteTrip={deleteTrip}
+
+              // Mountain data from Laravel
+              mountains={mountains}
+              mountainsLoading={mountainsLoading}
+              mountainsError={mountainsError}
             />
           }
         />
 
+
+        {/* TRAIL DETAILS */}
         <Route
-          path="/trails/:id"
-          element={
+        path="/trails/:id"
+        element={
             <TrailDetail
-              trips={trips}
-              onJoin={join}
-              joined={joined}
-              user={user}
-              onDeleteTrip={deleteTrip}
+            trips={trips}
+            onJoin={join}
+            joined={joined}
+            user={user}
+            onDeleteTrip={deleteTrip}
+            mountains={mountains}
+            mountainsLoading={mountainsLoading}
+            mountainsError={mountainsError}
             />
-          }
+        }
         />
 
-        {/* Old Post Your Trip URL redirects to the Trails page. */}
+
+        {/* OLD POST YOUR TRIP URL */}
         <Route
           path="/post-trip"
-          element={<Navigate to="/trails?create=true" replace />}
+          element={
+            <Navigate to="/trails?create=true" replace />
+          }
         />
 
+
+        {/* PROFILE */}
         <Route
           path="/profile"
           element={
@@ -2738,6 +3344,8 @@ useEffect(() => {
           }
         />
 
+
+        {/* DASHBOARD */}
         <Route
           path="/dashboard"
           element={
@@ -2750,17 +3358,37 @@ useEffect(() => {
           }
         />
 
+
+        {/* LOGIN */}
         <Route
           path="/login"
-          element={<AuthPage mode="login" setUser={setUser} />}
+          element={
+            <AuthPage
+              mode="login"
+              setUser={setUser}
+            />
+          }
         />
 
+
+        {/* REGISTER */}
         <Route
           path="/register"
-          element={<AuthPage mode="register" setUser={setUser} />}
+          element={
+            <AuthPage
+              mode="register"
+              setUser={setUser}
+            />
+          }
         />
 
-        <Route path="*" element={<NotFound />} />
+
+        {/* NOT FOUND */}
+        <Route
+          path="*"
+          element={<NotFound />}
+        />
+
       </Routes>
 
       <Footer />
