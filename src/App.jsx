@@ -27,6 +27,27 @@ const save = (key, value) => {
   localStorage.setItem(key, JSON.stringify(value));
 };
 
+// --------------------------------------------------
+// LARAVEL API CONFIGURATION
+// --------------------------------------------------
+
+const API_BASE = 'http://127.0.0.1:8000/api';
+
+const getAuthToken = () => {
+  return localStorage.getItem('hb-token');
+};
+
+const mapApiUser = (apiUser) => ({
+  id: apiUser.id,
+  name: apiUser.name,
+  email: apiUser.email,
+  city: apiUser.city,
+  fitness: apiUser.fitness_level || 'Intermediate',
+  pace: apiUser.preferred_pace || 'Steady',
+  role: apiUser.role,
+  status: apiUser.status
+});
+
 const regions = ['All regions', 'Yangon', 'Mandalay', 'Bagan'];
 const levels = ['All levels', 'Easy', 'Moderate', 'Hard'];
 
@@ -1728,13 +1749,62 @@ function Profile({ user, setUser, trips, onDeleteTrip }) {
     });
   };
 
-  const saveProfile = e => {
+  
+    const saveProfile = async e => {
     e.preventDefault();
 
-    setUser(form);
-    save('hb-user', form);
-    setEdit(false);
-  };
+    try {
+        const token = getAuthToken();
+
+        if (!token) {
+        throw new Error('Please log in again.');
+        }
+
+        const response = await fetch(`${API_BASE}/profile`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            name: form.name,
+            city: form.city,
+            fitness_level: form.fitness,
+            preferred_pace: form.pace
+        })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+        const validationErrors = data.errors
+            ? Object.values(data.errors).flat().join(' ')
+            : '';
+
+        throw new Error(
+            validationErrors ||
+            data.message ||
+            'Unable to update profile.'
+        );
+        }
+
+        // Convert Laravel response to the React user format
+        const updatedUser = mapApiUser(data.user);
+
+        // Update React state and local cache only after MySQL succeeds
+        setUser(updatedUser);
+        save('hb-user', updatedUser);
+        setForm(updatedUser);
+        setEdit(false);
+
+        alert('Your profile has been updated successfully.');
+
+    } catch (error) {
+        alert(error.message);
+    }
+    };
+
 
   const myPosts = posts.filter(post => post.email === user.email);
 
@@ -2170,6 +2240,7 @@ function Dashboard({ user, trips, setTrips, onDeleteTrip }) {
 // AUTHENTICATION
 // --------------------------------------------------
 
+
 function AuthPage({ mode, setUser }) {
   const register = mode === 'register';
   const nav = useNavigate();
@@ -2178,10 +2249,12 @@ function AuthPage({ mode, setUser }) {
     name: '',
     email: '',
     password: '',
+    password_confirmation: '',
     city: 'Mandalay'
   });
 
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const change = e => {
     setForm({
@@ -2190,85 +2263,91 @@ function AuthPage({ mode, setUser }) {
     });
   };
 
-  const submit = e => {
+  const submit = async e => {
     e.preventDefault();
     setError('');
 
     const email = form.email.trim().toLowerCase();
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('Enter a valid email address.');
-      return;
-    }
 
     if (form.password.length < 8) {
       setError('Use at least 8 characters for the password.');
       return;
     }
 
-    const accounts = stored('hb-accounts', []);
-
-    if (register) {
-      if (!form.name.trim()) {
-        setError('Enter your full name.');
-        return;
-      }
-
-      if (accounts.some(account => account.email === email)) {
-        setError('An account with this email already exists. Please sign in.');
-        return;
-      }
-
-      const account = {
-        name: form.name.trim(),
-        email,
-        password: form.password,
-        city: form.city,
-        fitness: 'Intermediate',
-        pace: 'Steady'
-      };
-
-      save('hb-accounts', [...accounts, account]);
-
-      const newUser = {
-        name: account.name,
-        email: account.email,
-        city: account.city,
-        fitness: account.fitness,
-        pace: account.pace
-      };
-
-      save('hb-user', newUser);
-      setUser(newUser);
-    } else {
-      const account = accounts.find(
-        item => item.email === email && item.password === form.password
-      );
-
-      if (!account) {
-        setError(
-          accounts.some(item => item.email === email)
-            ? 'Incorrect password. Please try again.'
-            : 'No account found for this email. Please register first.'
-        );
-        return;
-      }
-
-      const newUser = {
-        name: account.name,
-        email: account.email,
-        city: account.city,
-        fitness: account.fitness || 'Intermediate',
-        pace: account.pace || 'Steady'
-      };
-
-      save('hb-user', newUser);
-      setUser(newUser);
+    if (register && !form.name.trim()) {
+      setError('Enter your full name.');
+      return;
     }
 
-    const next = new URLSearchParams(window.location.search).get('next');
+    if (register && form.password !== form.password_confirmation) {
+      setError('The passwords do not match.');
+      return;
+    }
 
-    nav(next || '/profile', { replace: true });
+    setLoading(true);
+
+    try {
+      const endpoint = register ? '/register' : '/login';
+
+      const payload = register
+        ? {
+            name: form.name.trim(),
+            email,
+            password: form.password,
+            password_confirmation: form.password_confirmation,
+            city: form.city,
+            fitness_level: 'Intermediate',
+            preferred_pace: 'Steady'
+          }
+        : {
+            email,
+            password: form.password
+          };
+
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const validationErrors = data.errors
+          ? Object.values(data.errors).flat().join(' ')
+          : '';
+
+        throw new Error(
+          validationErrors ||
+          data.message ||
+          'Something went wrong. Please try again.'
+        );
+      }
+
+      localStorage.setItem('hb-token', data.token);
+
+      const newUser = mapApiUser(data.user);
+
+      localStorage.setItem('hb-user', JSON.stringify(newUser));
+
+      setUser(newUser);
+
+      const next = new URLSearchParams(window.location.search).get('next');
+
+      nav(next || '/profile', { replace: true });
+
+    } catch (err) {
+      setError(
+        err.message === 'Failed to fetch'
+          ? 'Cannot connect to the server. Please make sure Laravel is running.'
+          : err.message
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -2327,6 +2406,7 @@ function AuthPage({ mode, setUser }) {
           </p>
 
           <form onSubmit={submit} className="mt-7 space-y-4">
+
             {register && (
               <Field
                 label="Full name"
@@ -2372,6 +2452,31 @@ function AuthPage({ mode, setUser }) {
             </label>
 
             {register && (
+              <label className="field-label">
+                Confirm password
+
+                <div className="relative mt-2">
+                  <LockKeyhole
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                  />
+
+                  <input
+                    className="field !pl-10"
+                    type="password"
+                    name="password_confirmation"
+                    value={form.password_confirmation}
+                    onChange={change}
+                    placeholder="Enter your password again"
+                    minLength={8}
+                    required
+                    autoComplete="new-password"
+                  />
+                </div>
+              </label>
+            )}
+
+            {register && (
               <Field
                 label="Home region"
                 name="city"
@@ -2382,14 +2487,26 @@ function AuthPage({ mode, setUser }) {
             )}
 
             {error && (
-              <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+              <p
+                role="alert"
+                className="rounded-lg bg-red-50 p-3 text-sm text-red-700"
+              >
                 {error}
               </p>
             )}
 
-            <button className="btn-primary w-full justify-center" type="submit">
-              {register ? 'Create account' : 'Sign in'}
-              <ArrowRight size={16} />
+            <button
+              className="btn-primary w-full justify-center disabled:opacity-60"
+              type="submit"
+              disabled={loading}
+            >
+              {loading
+                ? 'Please wait...'
+                : register
+                  ? 'Create account'
+                  : 'Sign in'}
+
+              {!loading && <ArrowRight size={16} />}
             </button>
           </form>
 
@@ -2405,7 +2522,7 @@ function AuthPage({ mode, setUser }) {
           </p>
 
           <p className="mt-5 text-xs leading-5 text-stone-400">
-            Demo accounts are stored in this browser only. This is not secure production authentication; connect Laravel authentication before deployment.
+            Your account information is managed securely by Hiking Buddy.
           </p>
         </div>
       </div>
@@ -2448,6 +2565,43 @@ export default function App() {
   useEffect(() => {
     save('hb-trips', trips);
   }, [trips]);
+
+  // Verify the saved login token with Laravel
+useEffect(() => {
+  const token = getAuthToken();
+
+  if (!token) {
+    localStorage.removeItem('hb-user');
+    setUser(null);
+    return;
+  }
+
+  fetch(`${API_BASE}/user`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  })
+    .then(async response => {
+      if (!response.ok) {
+        throw new Error('Session expired');
+      }
+
+      return response.json();
+    })
+    .then(data => {
+      const currentUser = mapApiUser(data.user);
+
+      localStorage.setItem('hb-user', JSON.stringify(currentUser));
+      setUser(currentUser);
+    })
+    .catch(() => {
+      localStorage.removeItem('hb-token');
+      localStorage.removeItem('hb-user');
+      setUser(null);
+    });
+}, []);
 
   const join = id => {
     if (!user) {
@@ -2495,10 +2649,27 @@ export default function App() {
     save('hb-trips', updated);
   };
 
-  const logout = () => {
+  const logout = async () => {
+  const token = getAuthToken();
+
+  try {
+    if (token) {
+      await fetch(`${API_BASE}/logout`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Logout request failed:', error);
+  } finally {
+    localStorage.removeItem('hb-token');
     localStorage.removeItem('hb-user');
     setUser(null);
-  };
+  }
+};
 
   return (
     <>
