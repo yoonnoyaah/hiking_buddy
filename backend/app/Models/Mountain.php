@@ -12,6 +12,7 @@ class Mountain extends Model
         'difficulty',
         'distance',
         'duration',
+        'elevation',
         'pace',
         'description',
         'image',

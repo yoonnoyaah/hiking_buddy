@@ -48,6 +48,20 @@ const mapApiUser = (apiUser) => ({
   status: apiUser.status
 });
 
+const mapApiTrip = (apiTrip) => ({
+  ...apiTrip,
+  id: apiTrip.id,
+  organizer_id: apiTrip.organizer_id,
+  mountain: apiTrip.mountain_name || apiTrip.mountain?.name || '',
+  date: String(apiTrip.trip_date || '').slice(0, 10),
+  time: apiTrip.trip_time ? String(apiTrip.trip_time).slice(0, 5) : '',
+  organizer: apiTrip.organizer?.name || 'Hiking member',
+  createdBy: apiTrip.organizer?.email || '',
+  joined: Number(apiTrip.joined_count ?? apiTrip.joined ?? 0),
+  spots: Number(apiTrip.spots || 0),
+  is_joined: Boolean(apiTrip.is_joined)
+});
+
 const fetchMountains = async () => {
   const response = await fetch('http://127.0.0.1:8000/api/mountains', {
     method: 'GET',
@@ -294,31 +308,102 @@ function ReportButton({ type = 'post', id, title, authorEmail, currentUserEmail 
   );
 }
 
+
 // --------------------------------------------------
 // COMMUNITY PAGE
-// Users can create, edit and delete their own posts.
+// Connected to Laravel + MySQL
 // --------------------------------------------------
 
 function Community({ user }) {
-  const [posts, setPosts] = useState(
-    () => stored('hb-community-posts', [])
-  );
+  const [posts, setPosts] = useState([]);
 
   const [body, setBody] = useState('');
   const [photo, setPhoto] = useState('');
+  const [photoFile, setPhotoFile] = useState(null);
   const [topic, setTopic] = useState('Trail experience');
+
   const [commentDrafts, setCommentDrafts] = useState({});
+  const [replyDrafts, setReplyDrafts] = useState({});
+  const [replyingTo, setReplyingTo] = useState(null);  
 
   const [editingId, setEditingId] = useState(null);
   const [editBody, setEditBody] = useState('');
   const [editTopic, setEditTopic] = useState('');
 
-  const persist = next => {
-    setPosts(next);
-    save('hb-community-posts', next);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const API_ROOT = API_BASE.replace(/\/api\/?$/, '');
+
+  // Convert Laravel storage paths into complete image URLs
+  const normalizePost = post => ({
+    ...post,
+    photo: post.photo
+      ? post.photo.startsWith('http')
+        ? post.photo
+        : `${API_ROOT}${post.photo.startsWith('/') ? '' : '/'}${post.photo}`
+      : '',
+    likes: post.likes || [],
+    comments: post.comments || []
+  });
+
+  // Get posts from MySQL
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const response = await fetch(`${API_BASE}/community-posts`, {
+        headers: {
+          Accept: 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to load community posts.');
+      }
+
+      setPosts((data.posts || []).map(normalizePost));
+    } catch (err) {
+      setError(err.message || 'Unable to connect to the server.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const publish = e => {
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  // Common authenticated request headers
+  const authHeaders = () => {
+    const token = getAuthToken();
+
+    if (!token) {
+      window.location.href = '/login?next=/community';
+      return null;
+    }
+
+    return {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`
+    };
+  };
+
+  // Read Laravel validation errors
+  const getErrorMessage = data => {
+    if (data.errors) {
+      return Object.values(data.errors).flat().join('\n');
+    }
+
+    return data.message || 'Something went wrong. Please try again.';
+  };
+
+  // Publish a new post
+  const publish = async e => {
     e.preventDefault();
 
     if (!user) {
@@ -326,28 +411,54 @@ function Community({ user }) {
       return;
     }
 
-    if (!body.trim() && !photo) return;
+    if (!body.trim() && !photoFile) {
+      setError('Please write something or upload a photo.');
+      return;
+    }
 
-    const next = [
-      {
-        id: Date.now(),
-        author: user.name,
-        email: user.email,
-        topic,
-        body: body.trim(),
-        photo,
-        likes: [],
-        comments: [],
-        date: new Date().toISOString()
-      },
-      ...posts
-    ];
+    const headers = authHeaders();
+    if (!headers) return;
 
-    persist(next);
-    setBody('');
-    setPhoto('');
+    try {
+      setSubmitting(true);
+      setError('');
+
+      const formData = new FormData();
+      formData.append('topic', topic);
+      formData.append('body', body.trim());
+
+      if (photoFile) {
+        formData.append('photo', photoFile);
+      }
+
+      const response = await fetch(`${API_BASE}/community-posts`, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(getErrorMessage(data));
+      }
+
+      setPosts(prev => [
+        normalizePost(data.post),
+        ...prev
+      ]);
+
+      setBody('');
+      setPhoto('');
+      setPhotoFile(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
+  // Select a photo
   const addPhoto = e => {
     const file = e.target.files?.[0];
 
@@ -355,72 +466,164 @@ function Community({ user }) {
 
     if (!file.type.startsWith('image/')) {
       alert('Please choose an image file.');
+      e.target.value = '';
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
       alert('Please choose an image smaller than 2 MB.');
+      e.target.value = '';
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => setPhoto(reader.result);
-    reader.readAsDataURL(file);
+    setPhotoFile(file);
+    setPhoto(URL.createObjectURL(file));
   };
 
+  // Remove selected photo
+  const removePhoto = () => {
+    if (photo.startsWith('blob:')) {
+      URL.revokeObjectURL(photo);
+    }
+
+    setPhoto('');
+    setPhotoFile(null);
+  };
+
+  // Start editing
   const startEdit = post => {
     setEditingId(post.id);
     setEditBody(post.body || '');
     setEditTopic(post.topic || 'Trail experience');
+    setError('');
   };
 
-  const saveEdit = id => {
-    if (!editBody.trim()) {
+  // Save edited post
+  const saveEdit = async id => {
+    const currentPost = posts.find(post => post.id === id);
+
+    if (!editBody.trim() && !currentPost?.photo) {
       alert('Post content cannot be empty.');
       return;
     }
 
-    const updated = posts.map(post =>
-      post.id === id && post.email === user?.email
-        ? { ...post, body: editBody.trim(), topic: editTopic }
-        : post
-    );
+    const headers = authHeaders();
+    if (!headers) return;
 
-    persist(updated);
-    setEditingId(null);
+    try {
+      setError('');
+
+      const response = await fetch(`${API_BASE}/community-posts/${id}`, {
+        method: 'PUT',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          body: editBody.trim(),
+          topic: editTopic
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(getErrorMessage(data));
+      }
+
+      setPosts(prev =>
+        prev.map(post =>
+          post.id === id
+            ? normalizePost(data.post)
+            : post
+        )
+      );
+
+      setEditingId(null);
+      setEditBody('');
+      setEditTopic('');
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const deletePost = id => {
-    if (!window.confirm('Are you sure you want to delete this post?')) return;
+  // Delete a post
+  const deletePost = async id => {
+    if (!window.confirm('Are you sure you want to delete this post?')) {
+      return;
+    }
 
-    persist(
-      posts.filter(post =>
-        !(post.id === id && post.email === user?.email)
-      )
-    );
+    const headers = authHeaders();
+    if (!headers) return;
+
+    try {
+      setError('');
+
+      const response = await fetch(`${API_BASE}/community-posts/${id}`, {
+        method: 'DELETE',
+        headers
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(getErrorMessage(data));
+      }
+
+      setPosts(prev => prev.filter(post => post.id !== id));
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const toggleLike = id => {
+  // Like or unlike a post
+  const toggleLike = async id => {
     if (!user) {
       window.location.href = '/login?next=/community';
       return;
     }
 
-    persist(
-      posts.map(post =>
-        post.id === id
-          ? {
-              ...post,
-              likes: (post.likes || []).includes(user.email)
-                ? post.likes.filter(email => email !== user.email)
-                : [...(post.likes || []), user.email]
-            }
-          : post
-      )
-    );
+    const headers = authHeaders();
+    if (!headers) return;
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/community-posts/${id}/like`,
+        {
+          method: 'POST',
+          headers
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(getErrorMessage(data));
+      }
+
+      setPosts(prev =>
+        prev.map(post => {
+          if (post.id !== id) return post;
+
+          const alreadyLiked = post.likes.includes(user.email);
+
+          return {
+            ...post,
+            likes: data.liked
+              ? alreadyLiked
+                ? post.likes
+                : [...post.likes, user.email]
+              : post.likes.filter(email => email !== user.email)
+          };
+        })
+      );
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const addComment = (e, post) => {
+  // Add a comment
+  const addComment = async (e, post) => {
     e.preventDefault();
 
     if (!user) {
@@ -429,123 +632,250 @@ function Community({ user }) {
     }
 
     const text = (commentDrafts[post.id] || '').trim();
+
     if (!text) return;
 
-    persist(
-      posts.map(item =>
-        item.id === post.id
-          ? {
-              ...item,
-              comments: [
-                ...(item.comments || []),
-                {
-                  id: Date.now(),
-                  author: user.name,
-                  email: user.email,
-                  body: text,
-                  date: new Date().toISOString()
-                }
-              ]
-            }
-          : item
-      )
-    );
+    const headers = authHeaders();
+    if (!headers) return;
 
-    setCommentDrafts({
-      ...commentDrafts,
-      [post.id]: ''
-    });
+    try {
+      const response = await fetch(
+        `${API_BASE}/community-posts/${post.id}/comments`,
+        {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            body: text
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(getErrorMessage(data));
+      }
+
+      setPosts(prev =>
+        prev.map(item =>
+          item.id === post.id
+            ? {
+                ...item,
+                comments: [
+                  ...item.comments,
+                  data.comment
+                ]
+              }
+            : item
+        )
+      );
+
+      setCommentDrafts(prev => ({
+        ...prev,
+        [post.id]: ''
+      }));
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  return (
-    <main className="container-shell page-pad">
-      <p className="eyebrow">HIKERS, STORIES AND SHARED MOMENTS</p>
+  // Reply to an existing comment
+    const addReply = async (e, post, comment) => {
+    e.preventDefault();
 
-      <h1 className="page-title">
-        The hiking <span className="text-sage-600">community.</span>
-      </h1>
+    if (!user) {
+        window.location.href = '/login?next=/community';
+        return;
+    }
 
-      <p className="mt-3 max-w-2xl leading-7 text-stone-500">
-        Share hiking photos and experiences, like posts, and join the conversation.
-      </p>
+    const text = (replyDrafts[comment.id] || '').trim();
 
-      <form
-        onSubmit={publish}
-        className="mt-7 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"
-      >
-        <div className="flex items-center gap-3">
-          <div className="avatar">
-            {user?.name?.[0]?.toUpperCase() || 'H'}
-          </div>
+    if (!text) return;
 
-          <p className="font-semibold text-ink">
-            {user ? `Share something, ${user.name.split(' ')[0]}` : 'Log in to share with the community'}
-          </p>
+    const headers = authHeaders();
+    if (!headers) return;
+
+    try {
+        setError('');
+
+        const response = await fetch(
+        `${API_BASE}/community-posts/${post.id}/comments`,
+        {
+            method: 'POST',
+            headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+            body: text,
+            parent_id: comment.id
+            })
+        }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+        throw new Error(getErrorMessage(data));
+        }
+
+        setPosts(prev =>
+        prev.map(item =>
+            item.id === post.id
+            ? {
+                ...item,
+                comments: item.comments.map(existingComment =>
+                    existingComment.id === comment.id
+                    ? {
+                        ...existingComment,
+                        replies: [
+                            ...(existingComment.replies || []),
+                            data.comment
+                        ]
+                        }
+                    : existingComment
+                )
+                }
+            : item
+        )
+        );
+
+        setReplyDrafts(prev => ({
+        ...prev,
+        [comment.id]: ''
+        }));
+
+        setReplyingTo(null);
+
+    } catch (err) {
+        setError(err.message);
+    }
+    };
+
+
+return (
+  <main className="container-shell page-pad">
+    <p className="eyebrow">HIKERS, STORIES AND SHARED MOMENTS</p>
+
+    <h1 className="page-title">
+      The hiking <span className="text-sage-600">community.</span>
+    </h1>
+
+    <p className="mt-3 max-w-2xl leading-7 text-stone-500">
+      Share hiking photos and experiences, like posts, and join the conversation.
+    </p>
+
+    {error && (
+      <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600 whitespace-pre-wrap">
+        {error}
+      </div>
+    )}
+
+    {/* CREATE POST */}
+    <form
+      onSubmit={publish}
+      className="mt-7 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"
+    >
+      <div className="flex items-center gap-3">
+        <div className="avatar">
+          {user?.name?.[0]?.toUpperCase() || 'H'}
         </div>
 
-        <label className="field-label mt-4">
-          Post category
+        <p className="font-semibold text-ink">
+          {user
+            ? `Share something, ${user.name.split(' ')[0]}`
+            : 'Log in to share with the community'}
+        </p>
+      </div>
 
-          <select
-            className="field mt-2"
-            value={topic}
-            onChange={e => setTopic(e.target.value)}
+      <label className="field-label mt-4">
+        Post category
+
+        <select
+          className="field mt-2"
+          value={topic}
+          onChange={e => setTopic(e.target.value)}
+        >
+          <option>Trail experience</option>
+          <option>Hiking tips</option>
+          <option>Questions for hikers</option>
+          <option>Photos and memories</option>
+        </select>
+      </label>
+
+      <textarea
+        className="field mt-4 min-h-28"
+        value={body}
+        onChange={e => setBody(e.target.value)}
+        placeholder="What is happening on your hiking journey?"
+      />
+
+      {photo && (
+        <div className="relative mb-3 mt-3 inline-block">
+          <img
+            src={photo}
+            alt="Selected hiking upload"
+            className="max-h-64 rounded-xl object-cover"
+          />
+
+          <button
+            type="button"
+            onClick={removePhoto}
+            className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-xs text-white"
           >
-            <option>Trail experience</option>
-            <option>Hiking tips</option>
-            <option>Questions for hikers</option>
-            <option>Photos and memories</option>
-          </select>
-        </label>
-
-        <textarea
-          className="field mt-4 min-h-28"
-          value={body}
-          onChange={e => setBody(e.target.value)}
-          placeholder="What is happening on your hiking journey?"
-        />
-
-        {photo && (
-          <div className="relative mb-3 mt-3 inline-block">
-            <img
-              src={photo}
-              alt="Selected hiking upload"
-              className="max-h-64 rounded-xl object-cover"
-            />
-
-            <button
-              type="button"
-              onClick={() => setPhoto('')}
-              className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-1 text-xs text-white"
-            >
-              Remove
-            </button>
-          </div>
-        )}
-
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <label className="btn-secondary cursor-pointer !px-3 !py-2 text-xs">
-            ＋ Add photo
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={addPhoto}
-            />
-          </label>
-
-          <button className="btn-primary" type="submit">
-            Publish post <ArrowRight size={16} />
+            Remove
           </button>
         </div>
+      )}
 
-        <p className="mt-2 text-xs text-stone-400">Image limit: 2 MB per post.</p>
-      </form>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <label className="btn-secondary cursor-pointer !px-3 !py-2 text-xs">
+          ＋ Add photo
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={addPhoto}
+          />
+        </label>
 
-      <div className="mx-auto mt-7 max-w-3xl space-y-5">
-        {posts.length ? posts.map(post => {
+        <button
+          className="btn-primary disabled:opacity-50"
+          type="submit"
+          disabled={submitting}
+        >
+          {submitting ? 'Publishing...' : 'Publish post'}
+          {!submitting && <ArrowRight size={16} />}
+        </button>
+      </div>
+
+      <p className="mt-2 text-xs text-stone-400">
+        Image limit: 2 MB per post.
+      </p>
+    </form>
+
+    {/* COMMUNITY POSTS */}
+    <div className="mx-auto mt-7 max-w-3xl space-y-5">
+      {loading ? (
+        <div className="empty-state">
+          <p className="text-sm text-stone-500">
+            Loading community posts...
+          </p>
+        </div>
+      ) : posts.length ? (
+        posts.map(post => {
           const isOwner = user?.email === post.email;
           const isEditing = editingId === post.id;
+          const liked = (post.likes || []).includes(user?.email);
+
+          const totalComments = (post.comments || []).reduce(
+            (total, comment) =>
+              total + 1 + (comment.replies || []).length,
+            0
+          );
 
           return (
             <article
@@ -559,7 +889,10 @@ function Community({ user }) {
                   </div>
 
                   <div>
-                    <p className="font-bold text-ink">{post.author}</p>
+                    <p className="font-bold text-ink">
+                      {post.author}
+                    </p>
+
                     <p className="mt-1 text-xs text-stone-400">
                       {post.topic} · {new Date(post.date).toLocaleDateString()}
                     </p>
@@ -569,6 +902,7 @@ function Community({ user }) {
                 {isOwner ? (
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={() => startEdit(post)}
                       className="btn-secondary !px-3 !py-2 text-xs"
                     >
@@ -576,6 +910,7 @@ function Community({ user }) {
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => deletePost(post.id)}
                       className="btn-secondary !px-3 !py-2 text-xs text-red-600"
                     >
@@ -593,6 +928,7 @@ function Community({ user }) {
                 )}
               </div>
 
+              {/* EDIT POST */}
               {isEditing ? (
                 <div className="mt-4 space-y-3">
                   <select
@@ -614,6 +950,7 @@ function Community({ user }) {
 
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={() => saveEdit(post.id)}
                       className="btn-primary"
                     >
@@ -621,6 +958,7 @@ function Community({ user }) {
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => setEditingId(null)}
                       className="btn-secondary"
                     >
@@ -646,37 +984,107 @@ function Community({ user }) {
                 </>
               )}
 
+              {/* LIKES */}
               <div className="mt-4 flex items-center gap-4 border-y border-stone-100 py-3">
                 <button
                   type="button"
                   onClick={() => toggleLike(post.id)}
                   className={`flex items-center gap-2 text-sm font-semibold ${
-                    (post.likes || []).includes(user?.email)
-                      ? 'text-rose-600'
-                      : 'text-stone-500'
+                    liked ? 'text-rose-600' : 'text-stone-500'
                   }`}
                 >
                   <Heart
                     size={18}
-                    fill={(post.likes || []).includes(user?.email) ? 'currentColor' : 'none'}
+                    fill={liked ? 'currentColor' : 'none'}
                   />
                   Like · {(post.likes || []).length}
                 </button>
 
                 <span className="text-sm text-stone-400">
-                  {(post.comments || []).length} comments
+                  {totalComments} comments
                 </span>
               </div>
 
-              <div className="mt-3 space-y-3">
+              {/* COMMENTS AND REPLIES */}
+              <div className="mt-3 space-y-4">
                 {(post.comments || []).map(comment => (
-                  <div key={comment.id} className="rounded-xl bg-stone-50 px-3 py-2">
-                    <p className="text-sm font-semibold text-ink">{comment.author}</p>
-                    <p className="mt-1 text-sm text-stone-600">{comment.body}</p>
+                  <div key={comment.id}>
+
+                    {/* MAIN COMMENT */}
+                    <div className="rounded-xl bg-stone-50 px-3 py-3">
+                      <p className="text-sm font-semibold text-ink">
+                        {comment.author}
+                      </p>
+
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-stone-600">
+                        {comment.body}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReplyingTo(
+                            replyingTo === comment.id ? null : comment.id
+                          )
+                        }
+                        className="mt-2 text-xs font-semibold text-sage-700 hover:text-sage-900"
+                      >
+                        {replyingTo === comment.id ? 'Cancel reply' : 'Reply'}
+                      </button>
+
+                      {/* REPLY INPUT */}
+                      {replyingTo === comment.id && (
+                        <form
+                          onSubmit={e => addReply(e, post, comment)}
+                          className="mt-3 flex gap-2"
+                        >
+                          <input
+                            className="field"
+                            value={replyDrafts[comment.id] || ''}
+                            onChange={e =>
+                              setReplyDrafts(prev => ({
+                                ...prev,
+                                [comment.id]: e.target.value
+                              }))
+                            }
+                            placeholder={`Reply to ${comment.author}...`}
+                          />
+
+                          <button
+                            type="submit"
+                            className="btn-primary !px-4"
+                          >
+                            Reply
+                          </button>
+                        </form>
+                      )}
+                    </div>
+
+                    {/* REPLIES */}
+                    {(comment.replies || []).length > 0 && (
+                      <div className="ml-6 mt-2 space-y-2 border-l-2 border-sage-200 pl-3">
+                        {comment.replies.map(reply => (
+                          <div
+                            key={reply.id}
+                            className="rounded-xl bg-stone-50 px-3 py-3"
+                          >
+                            <p className="text-sm font-semibold text-ink">
+                              {reply.author}
+                            </p>
+
+                            <p className="mt-1 whitespace-pre-wrap text-sm text-stone-600">
+                              {reply.body}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                   </div>
                 ))}
               </div>
 
+              {/* ADD COMMENT */}
               <form
                 onSubmit={e => addComment(e, post)}
                 className="mt-3 flex gap-2"
@@ -684,31 +1092,38 @@ function Community({ user }) {
                 <input
                   className="field"
                   value={commentDrafts[post.id] || ''}
-                  onChange={e => setCommentDrafts({
-                    ...commentDrafts,
-                    [post.id]: e.target.value
-                  })}
+                  onChange={e =>
+                    setCommentDrafts(prev => ({
+                      ...prev,
+                      [post.id]: e.target.value
+                    }))
+                  }
                   placeholder="Write a comment..."
                 />
 
-                <button className="btn-primary !px-4" type="submit">
+                <button
+                  className="btn-primary !px-4"
+                  type="submit"
+                >
                   Comment
                 </button>
               </form>
             </article>
           );
-        }) : (
-          <div className="empty-state">
-            <Users size={28} />
-            <p className="mt-3 text-sm text-stone-500">
-              No community posts yet. Be the first to share a hiking moment.
-            </p>
-          </div>
-        )}
-      </div>
-    </main>
-  );
+        })
+      ) : (
+        <div className="empty-state">
+          <Users size={28} />
+          <p className="mt-3 text-sm text-stone-500">
+            No community posts yet. Be the first to share a hiking moment.
+          </p>
+        </div>
+      )}
+    </div>
+  </main>
+);
 }
+
 
 // --------------------------------------------------
 // TRAIL CARD
@@ -770,10 +1185,13 @@ function TrailCard({ trail }) {
 // Includes delete button for the trip owner.
 // --------------------------------------------------
 
-function TripCard({ trip, onJoin, joined, user, onDelete }) {
+function TripCard({ trip, onJoin, user, onDelete }) {
   const [copied, setCopied] = useState(false);
+  const hasJoined = Boolean(trip.is_joined);
 
-  const isOwner = user?.email && user.email === trip.createdBy;
+  const isOwner =
+  (user?.id && Number(user.id) === Number(trip.organizer_id)) ||
+  (user?.email && user.email === trip.createdBy);
 
   const copy = async e => {
     e.preventDefault();
@@ -787,6 +1205,16 @@ function TripCard({ trip, onJoin, joined, user, onDelete }) {
       window.prompt('Copy Telegram username', trip.telegram);
     }
   };
+
+  const today = new Date();
+const todayString = [
+  today.getFullYear(),
+  String(today.getMonth() + 1).padStart(2, '0'),
+  String(today.getDate()).padStart(2, '0')
+].join('-');
+
+const tripDate = String(trip.date || '').slice(0, 10);
+const isExpired = tripDate && tripDate < todayString;
 
   return (
     <article className="rounded-2xl border border-stone-200 bg-white p-5 transition hover:shadow-soft">
@@ -862,20 +1290,43 @@ function TripCard({ trip, onJoin, joined, user, onDelete }) {
           </a>
         )}
 
-        <button
-          disabled={joined || trip.joined >= trip.spots}
-          onClick={() => onJoin(trip.id)}
-          className="btn-primary ml-auto !px-4 !py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {joined ? 'Joined ✓' : trip.joined >= trip.spots ? 'Full' : 'Join trip'}
-        </button>
+        
 
-        {isOwner && (
+        {isOwner ? (
+          <div className="ml-auto flex items-center gap-2">
+            <span className="rounded-full bg-sage-50 px-4 py-2 text-xs font-semibold text-sage-700">
+              Your Trip
+            </span>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(trip.id)}
+                className="btn-secondary !px-3 !py-2 text-xs text-red-600"
+              >
+                <Trash2 size={14} /> Delete
+              </button>
+            )}
+          </div>
+        ) : isExpired ? (
           <button
-            onClick={() => onDelete(trip.id)}
-            className="btn-secondary !px-3 !py-2 text-xs text-red-600"
+            type="button"
+            disabled
+            className="ml-auto cursor-not-allowed rounded-full bg-stone-100 px-4 py-2 text-xs font-semibold text-stone-500"
           >
-            <Trash2 size={14} /> Delete
+            Expired
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={hasJoined || Number(trip.joined) >= Number(trip.spots)}
+            onClick={() => onJoin(trip.id)}
+            className="btn-primary ml-auto !px-4 !py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {hasJoined
+              ? 'Joined ✓'
+              : Number(trip.joined) >= Number(trip.spots)
+                ? 'Full'
+                : 'Join trip'}
           </button>
         )}
       </div>
@@ -887,7 +1338,7 @@ function TripCard({ trip, onJoin, joined, user, onDelete }) {
 // HOME PAGE
 // --------------------------------------------------
 
-function Home({ trips, user, onJoin, joined }) {
+function Home({ trips, user, onJoin, onDeleteTrip }) {
   return (
     <>
       <section className="container-shell pt-5">
@@ -1014,15 +1465,16 @@ function Home({ trips, user, onJoin, joined }) {
               trip={trip}
               user={user}
               onJoin={onJoin}
-              joined={joined.includes(trip.id)}
+              onDelete={onDeleteTrip}
             />
           ))}
         </div>
       </section>
     </>
   );
-}
 
+
+}
 
 // --------------------------------------------------
 // TRAILS PAGE
@@ -1032,7 +1484,6 @@ function Home({ trips, user, onJoin, joined }) {
 function TrailsPage({
   trips,
   onJoin,
-  joined,
   user,
   setTrips,
   onDeleteTrip,
@@ -1484,8 +1935,7 @@ function TrailsPage({
                 trip={trip}
                 user={user}
                 onJoin={onJoin}
-                joined={joined.includes(trip.id)}
-                onDelete={onDeleteTrip}
+                  onDelete={onDeleteTrip}
               />
 
             ))
@@ -1695,9 +2145,9 @@ function PostTrip({ user, trips, setTrips, mountains = [], onCancel }) {
       const response = await fetch(`${API_BASE}/group-trips`, {
         method: 'POST',
         headers: {
+          Accept: 'application/json',
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
@@ -1719,17 +2169,16 @@ function PostTrip({ user, trips, setTrips, mountains = [], onCancel }) {
       const savedTrip = data.trip;
 
       // Convert Laravel response into the format used by TripCard
-      const newTrip = {
+      const newTrip = mapApiTrip({
         ...savedTrip,
-        id: savedTrip.id,
-        mountain: savedTrip.mountain_name,
-        date: savedTrip.trip_date,
-        time: savedTrip.trip_time?.slice(0, 5),
-        organizer: savedTrip.organizer?.name || user.name,
-        joined: savedTrip.joined_count || 0,
-        createdBy: user.email,
-        spots: Number(savedTrip.spots)
-      };
+        organizer: savedTrip.organizer || {
+          id: user.id,
+          name: user.name,
+          email: user.email
+        },
+        joined_count: savedTrip.joined_count || 0,
+        is_joined: false
+      });
 
       // Update the current React page
       setTrips(current => [newTrip, ...current]);
@@ -2069,7 +2518,6 @@ function Field({
 function TrailDetail({
   trips,
   onJoin,
-  joined,
   user,
   onDeleteTrip,
   mountains,
@@ -2202,8 +2650,7 @@ function TrailDetail({
                 trip={trip}
                 user={user}
                 onJoin={onJoin}
-                joined={joined.includes(trip.id)}
-                onDelete={onDeleteTrip}
+                  onDelete={onDeleteTrip}
               />
             ))
           ) : (
@@ -2233,9 +2680,27 @@ function Profile({ user, setUser, trips, onDeleteTrip }) {
 
   const [form, setForm] = useState(() => ({ ...user }));
 
-  const [posts, setPosts] = useState(
-    () => stored('hb-community-posts', [])
-  );
+  const [posts, setPosts] = useState([]);
+
+  useEffect(() => {
+    const loadMyPosts = async () => {
+      try {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE}/community-posts`, {
+          headers: {
+            Accept: 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        });
+        const data = await response.json();
+        if (response.ok) setPosts(data.posts || []);
+      } catch (error) {
+        console.error('Unable to load profile posts:', error);
+      }
+    };
+
+    if (user) loadMyPosts();
+  }, [user?.id]);
 
   if (!user) {
     return <Navigate to="/login?next=%2Fprofile" replace />;
@@ -2305,21 +2770,41 @@ function Profile({ user, setUser, trips, onDeleteTrip }) {
     };
 
 
-  const myPosts = posts.filter(post => post.email === user.email);
+  const myPosts = posts.filter(post => post.email === user.email || Number(post.user_id) === Number(user.id));
 
   const myTrails = trips.filter(
-    trip => trip.createdBy === user.email
+    trip => Number(trip.organizer_id) === Number(user.id) || trip.createdBy === user.email
   );
 
-  const deletePost = id => {
+  const deletePost = async id => {
     if (!window.confirm('Delete this post?')) return;
 
-    const updated = posts.filter(
-      post => !(post.id === id && post.email === user.email)
-    );
+    const token = getAuthToken();
+    if (!token) {
+      alert('Please log in again.');
+      return;
+    }
 
-    setPosts(updated);
-    save('hb-community-posts', updated);
+    try {
+      const response = await fetch(`${API_BASE}/community-posts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to delete this post.');
+      }
+
+      setPosts(current =>
+        current.filter(post => String(post.id) !== String(id))
+      );
+    } catch (error) {
+      alert(error.message);
+    }
   };
 
   return (
@@ -2594,7 +3079,7 @@ function Dashboard({ user, trips, setTrips, onDeleteTrip }) {
     return <Navigate to="/login?next=%2Fdashboard" replace />;
   }
 
-  const mine = trips.filter(trip => trip.createdBy === user.email);
+  const mine = trips.filter(trip => Number(trip.organizer_id) === Number(user.id) || trip.createdBy === user.email);
   const selectedTrip = trips.find(trip => trip.id === selected);
 
   return (
@@ -3056,29 +3541,10 @@ export default function App() {
   // -----------------------------------------------
 
   const [user, setUser] = useState(() => stored('hb-user', null));
-
-  const [trips, setTrips] = useState(
-    () => stored('hb-trips', initialTrips)
-  );
-
-  const [joined, setJoined] = useState(
-    () => stored('hb-joined', [])
-  );
-
-  // Mountain data from Laravel
+  const [trips, setTrips] = useState([]);
   const [mountains, setMountains] = useState([]);
   const [mountainsLoading, setMountainsLoading] = useState(true);
   const [mountainsError, setMountainsError] = useState('');
-
-
-  // -----------------------------------------------
-  // SAVE TRIPS TO LOCAL STORAGE
-  // -----------------------------------------------
-
-  useEffect(() => {
-    save('hb-trips', trips);
-  }, [trips]);
-
 
   // -----------------------------------------------
   // VERIFY LOGIN TOKEN WITH LARAVEL
@@ -3096,38 +3562,32 @@ export default function App() {
     fetch(`${API_BASE}/user`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`
       }
     })
       .then(async response => {
+        const data = await response.json();
         if (!response.ok) {
-          throw new Error('Session expired');
+          throw new Error(data.message || 'Your login session has expired.');
         }
-
-        return response.json();
+        return data;
       })
       .then(data => {
         const currentUser = mapApiUser(data.user);
-
-        localStorage.setItem(
-          'hb-user',
-          JSON.stringify(currentUser)
-        );
-
+        localStorage.setItem('hb-user', JSON.stringify(currentUser));
         setUser(currentUser);
       })
-      .catch(() => {
+      .catch(error => {
+        console.error('Login verification failed:', error);
         localStorage.removeItem('hb-token');
         localStorage.removeItem('hb-user');
         setUser(null);
       });
-
   }, []);
 
-
   // -----------------------------------------------
-  // LOAD MOUNTAINS FROM LARAVEL DATABASE
+  // LOAD MOUNTAINS FROM LARAVEL
   // -----------------------------------------------
 
   useEffect(() => {
@@ -3138,74 +3598,109 @@ export default function App() {
 
         const response = await fetch(`${API_BASE}/mountains`, {
           method: 'GET',
-          headers: {
-            'Accept': 'application/json'
-          }
+          headers: { Accept: 'application/json' }
         });
-
-        if (!response.ok) {
-          throw new Error('Unable to load mountains.');
-        }
-
         const data = await response.json();
 
-        setMountains(data.mountains);
+        if (!response.ok) {
+          throw new Error(data.message || 'Unable to load mountains.');
+        }
 
+        setMountains(data.mountains || []);
       } catch (error) {
         console.error('Mountain loading error:', error);
         setMountainsError(error.message);
-
       } finally {
         setMountainsLoading(false);
       }
     };
 
     loadMountains();
-
   }, []);
 
+  // -----------------------------------------------
+  // LOAD GROUP TRIPS FROM MYSQL
+  // Authorization allows Laravel to identify the
+  // current account and return its own is_joined value.
+  // -----------------------------------------------
+
+  const loadTrips = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE}/group-trips`, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to load group trips.');
+      }
+
+      const apiTrips = Array.isArray(data.trips)
+        ? data.trips
+        : Array.isArray(data)
+          ? data
+          : [];
+
+      setTrips(apiTrips.map(mapApiTrip));
+    } catch (error) {
+      console.error('Group trip loading error:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadTrips();
+  }, [user?.id]);
 
   // -----------------------------------------------
-  // JOIN TRIP
+  // JOIN A TRIP USING LARAVEL + MYSQL
   // -----------------------------------------------
 
-  const join = id => {
+  const join = async id => {
     if (!user) {
-      window.location.href = '/login';
+      window.location.href = '/login?next=/trails';
       return;
     }
 
-    if (joined.includes(id)) return;
+    const token = getAuthToken();
+    if (!token) {
+      alert('Your login session has expired. Please log in again.');
+      return;
+    }
 
-    const next = joined.concat(id);
+    try {
+      const response = await fetch(`${API_BASE}/group-trips/${id}/join`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
 
-    setJoined(next);
-    save('hb-joined', next);
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to join this trip.');
+      }
 
-    setTrips(prev =>
-      prev.map(trip =>
-        trip.id === id
-          ? {
-              ...trip,
-              joined: Math.min(
-                Number(trip.spots) || 0,
-                (Number(trip.joined) || 0) + 1
-              )
-            }
-          : trip
-      )
-    );
+      await loadTrips();
+    } catch (error) {
+      alert(error.message);
+    }
   };
 
-
   // -----------------------------------------------
-  // DELETE OWN TRIP
+  // DELETE A TRIP FROM MYSQL
   // -----------------------------------------------
 
-  const deleteTrip = id => {
-    const trip = trips.find(item => item.id === id);
+  const deleteTrip = async id => {
+    const trip = trips.find(item => String(item.id) === String(id));
 
-    if (!trip || trip.createdBy !== user?.email) {
+    if (!trip || Number(trip.organizer_id) !== Number(user?.id)) {
       alert('You can only delete your own trips.');
       return;
     }
@@ -3214,12 +3709,33 @@ export default function App() {
       return;
     }
 
-    const updated = trips.filter(item => item.id !== id);
+    const token = getAuthToken();
+    if (!token) {
+      alert('Please log in again.');
+      return;
+    }
 
-    setTrips(updated);
-    save('hb-trips', updated);
+    try {
+      const response = await fetch(`${API_BASE}/group-trips/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Unable to delete this trip.');
+      }
+
+      setTrips(current =>
+        current.filter(item => String(item.id) !== String(id))
+      );
+    } catch (error) {
+      alert(error.message);
+    }
   };
-
 
   // -----------------------------------------------
   // LOGOUT
@@ -3268,7 +3784,7 @@ export default function App() {
               trips={trips}
               user={user}
               onJoin={join}
-              joined={joined}
+              onDeleteTrip={deleteTrip}
             />
           }
         />
@@ -3290,7 +3806,6 @@ export default function App() {
             <TrailsPage
               trips={trips}
               onJoin={join}
-              joined={joined}
               user={user}
               setTrips={setTrips}
               onDeleteTrip={deleteTrip}
@@ -3311,7 +3826,6 @@ export default function App() {
             <TrailDetail
             trips={trips}
             onJoin={join}
-            joined={joined}
             user={user}
             onDeleteTrip={deleteTrip}
             mountains={mountains}

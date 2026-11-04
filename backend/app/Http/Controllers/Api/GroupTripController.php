@@ -7,6 +7,7 @@ use App\Models\GroupTrip;
 use App\Models\TripMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class GroupTripController extends Controller
 {
@@ -15,10 +16,16 @@ class GroupTripController extends Controller
     {
         $trips = GroupTrip::with('organizer:id,name')
             ->withCount([
-                'members as joined_count' => function ($query) {
-                    $query->where('status', 'joined');
-                }
-            ])
+            'members as joined_count' => function ($query) {
+                $query->where('status', 'joined');
+            }
+        ])
+        ->withExists([
+            'members as is_joined' => function ($query) use ($currentUser) {
+                $query->where('user_id', $currentUser?->id ?? 0)
+                    ->where('status', 'joined');
+            }
+        ])
             ->where('status', 'active')
             ->latest()
             ->get();
@@ -27,6 +34,8 @@ class GroupTripController extends Controller
             'success' => true,
             'trips' => $trips
         ]);
+
+        $currentUser = Auth::guard('sanctum')->user();
     }
 
     // Get one trip
