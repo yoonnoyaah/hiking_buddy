@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Routes, Route, Link, NavLink, Navigate, useNavigate, useParams
+  Routes, Route, Link, NavLink, Navigate, useNavigate, useParams, useLocation
 } from 'react-router-dom';
 import {
   Mountain, ArrowRight, ArrowUpRight, Menu, X, MapPin,
@@ -206,15 +206,25 @@ function Footer() {
           </div>
         </div>
 
+        
         <div>
-          <p className="font-semibold">Community</p>
+            <p className="font-semibold">Community</p>
 
-          <div className="mt-4 flex flex-col gap-3 text-sm text-stone-300">
-            <a href="#safety" className="hover:text-white">Hiking safety</a>
-            <a href="#privacy" className="hover:text-white">Privacy policy</a>
-            <a href="#cookies" className="hover:text-white">Cookie preferences</a>
-          </div>
+            <div className="mt-4 flex flex-col gap-3 text-sm text-stone-300">
+                <Link to="/safety" className="hover:text-white">
+                Hiking safety
+                </Link>
+
+                <Link to="/privacy" className="hover:text-white">
+                Privacy policy
+                </Link>
+
+                <Link to="/cookies" className="hover:text-white">
+                Cookie preferences
+                </Link>
+            </div>
         </div>
+
       </div>
 
       <div className="border-t border-white/10">
@@ -227,43 +237,632 @@ function Footer() {
   );
 }
 
+
 // --------------------------------------------------
-// COOKIE BANNER
+// COOKIE CONSENT MANAGEMENT SYSTEM
 // --------------------------------------------------
+
+const COOKIE_KEY = 'hb-cookie-consent';
+const CONSENT_DURATION = 60 * 1000; // 1 minute
 
 function CookieBanner() {
-  const [show, setShow] = useState(
-    () => !localStorage.getItem('hb-cookie-choice')
-  );
+  const location = useLocation();
+  const [show, setShow] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
-  const choose = value => {
-    localStorage.setItem('hb-cookie-choice', value);
+  const [preferences, setPreferences] = useState({
+    essential: true,
+    analytics: false,
+    marketing: false,
+  });
+
+  // Check saved consent and expiry
+  useEffect(() => {
+    const savedConsent = localStorage.getItem(COOKIE_KEY);
+
+    if (savedConsent) {
+      try {
+        const consent = JSON.parse(savedConsent);
+
+        if (Date.now() < consent.expiresAt) {
+          setPreferences(consent.preferences);
+          setShow(false);
+          return;
+        }
+
+        localStorage.removeItem(COOKIE_KEY);
+      } catch {
+        localStorage.removeItem(COOKIE_KEY);
+      }
+    }
+
+    setShow(true);
+  }, []);
+
+  // Save consent for one minute
+  const saveConsent = (choices) => {
+    const consent = {
+      preferences: choices,
+      expiresAt: Date.now() + CONSENT_DURATION,
+      updatedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(COOKIE_KEY, JSON.stringify(consent));
+
+    setPreferences(choices);
     setShow(false);
+    setShowSettings(false);
   };
 
-  if (!show) return null;
+  // Accept all cookies
+  const acceptAll = () => {
+    saveConsent({
+      essential: true,
+      analytics: true,
+      marketing: true,
+    });
+  };
+
+  // Reject optional cookies
+  const rejectOptional = () => {
+    saveConsent({
+      essential: true,
+      analytics: false,
+      marketing: false,
+    });
+  };
+
+  // Toggle individual preferences
+  const togglePreference = (category) => {
+    setPreferences((previous) => ({
+      ...previous,
+      [category]: !previous[category],
+    }));
+  };
+
+  // Save selected preferences
+  const savePreferences = () => {
+    saveConsent(preferences);
+  };
+
+  if (!show || location.pathname === '/cookies') return null;
+
+  
+return (
+  <>
+    {/* COMPACT HORIZONTAL COOKIE BANNER */}
+    <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-6xl rounded-xl border border-stone-200 bg-white px-5 py-3 shadow-xl">
+
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+
+        {/* TEXT */}
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="text-2xl">🍃</span>
+
+          <div>
+            <p className="text-sm font-semibold text-ink">
+              Your privacy matters
+            </p>
+
+            <p className="text-xs leading-relaxed text-stone-500">
+              Hiking Buddy uses essential cookies and optional cookies
+              to improve your browsing experience.
+            </p>
+          </div>
+        </div>
+
+        {/* ACTION BUTTONS */}
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+
+
+          <button
+            onClick={rejectOptional}
+            className="rounded-lg border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 transition hover:bg-stone-50"
+          >
+            Reject
+          </button>
+
+          <button
+            onClick={acceptAll}
+            className="rounded-lg bg-[#25291f] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#25291f]"
+          >
+            Accept All
+          </button>
+
+        </div>
+      </div>
+    </div>
+
+    {/* COMPACT PREFERENCES PANEL */}
+    {showSettings && (
+      <div className="fixed bottom-24 left-4 right-4 z-[51] mx-auto max-w-2xl rounded-xl border border-stone-200 bg-white p-5 shadow-xl">
+
+        <div className="mb-4 flex items-center justify-between">
+
+          <button
+            onClick={() => setShowSettings(false)}
+            className="text-lg text-stone-400 hover:text-stone-700"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+
+          <label className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 p-3">
+            <span className="text-xs font-medium text-ink">
+              Essential
+            </span>
+            <input type="checkbox" checked disabled />
+          </label>
+
+          <label className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 p-3">
+            <span className="text-xs font-medium text-ink">
+              Analytics
+            </span>
+            <input
+              type="checkbox"
+              checked={preferences.analytics}
+              onChange={() => togglePreference('analytics')}
+              className="accent-[#4a6cf7]"
+            />
+          </label>
+
+          <label className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 p-3">
+            <span className="text-xs font-medium text-ink">
+              Marketing
+            </span>
+            <input
+              type="checkbox"
+              checked={preferences.marketing}
+              onChange={() => togglePreference('marketing')}
+              className="accent-[#4a6cf7]"
+            />
+          </label>
+
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={savePreferences}
+            className="rounded-lg bg-[#4a6cf7] px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700"
+          >
+            Save Preferences
+          </button>
+        </div>
+      </div>
+    )}
+  </>
+); }
+
+
+<button
+  onClick={() => {
+    localStorage.removeItem('hb-cookie-consent');
+    window.location.reload();
+  }}
+  className="text-sm text-stone-500 hover:underline"
+>
+  Cookie Settings
+</button>
+
+
+// --------------------------------------------------
+// INFORMATION PAGES
+// --------------------------------------------------
+
+function InfoLayout({ eyebrow, title, subtitle, children }) {
+  return (
+    <main className="container-shell page-pad">
+      <div className="mb-10 max-w-3xl">
+        <p className="eyebrow">{eyebrow}</p>
+        <h1 className="page-title mt-3">{title}</h1>
+        <p className="mt-4 leading-7 text-stone-500">{subtitle}</p>
+      </div>
+
+      <div className="mx-auto max-w-4xl">
+        {children}
+      </div>
+    </main>
+  );
+}
+
+function InfoSection({ number, title, children }) {
+  return (
+    <section className="border-b border-stone-200 py-7 last:border-0">
+      <div className="flex gap-4">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sage-50 text-sm font-bold text-sage-700">
+          {number}
+        </span>
+        <div>
+          <h2 className="text-lg font-bold text-ink">{title}</h2>
+          <div className="mt-3 space-y-3 text-sm leading-7 text-stone-600">
+            {children}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// --------------------------------------------------
+// HIKING SAFETY PAGE
+// --------------------------------------------------
+
+function SafetyPage() {
+  const checklist = [
+    'Check the weather forecast before departure.',
+    'Bring enough drinking water and food.',
+    'Wear suitable hiking shoes and comfortable clothing.',
+    'Carry a first-aid kit and a fully charged phone.',
+    'Share the hiking plan with a trusted person.',
+    'Stay with the group and follow the agreed route.',
+    'Take all rubbish back with you.',
+  ];
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-4xl flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-2xl sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <p className="font-semibold text-ink">A little trail housekeeping 🍃</p>
-        <p className="mt-1 text-sm text-stone-500">
-          We use essential local storage to remember preferences and demo sign-in.
+    <InfoLayout
+      eyebrow="EXPLORE RESPONSIBLY"
+      title={<>Adventure starts with <span className="text-sage-600">safety.</span></>}
+      subtitle="A memorable hiking experience begins with good preparation. Follow these simple guidelines before and during every trip."
+    >
+      <div className="mb-8 overflow-hidden rounded-2xl bg-[#25291f] p-7 text-white sm:p-9">
+        <Mountain size={30} className="text-sage-300" />
+        <h2 className="mt-5 text-2xl font-bold">
+          The mountain will always be there.
+        </h2>
+        <p className="mt-3 max-w-xl text-sm leading-7 text-stone-300">
+          Never risk personal safety just to reach a destination.
+          Turn back when weather or trail conditions become dangerous.
         </p>
       </div>
 
-      <div className="flex shrink-0 gap-2">
-        <button className="btn-secondary" onClick={() => choose('declined')}>
-          Decline
-        </button>
+      <InfoSection number="01" title="Before the hike">
+        <p>Preparation helps reduce unexpected problems during outdoor activities.</p>
+        <ul className="list-disc space-y-2 pl-5">
+          <li>Research the trail difficulty and distance.</li>
+          <li>Check weather conditions and possible route closures.</li>
+          <li>Choose a trip that matches your fitness and experience.</li>
+          <li>Inform someone about the destination and expected return time.</li>
+        </ul>
+      </InfoSection>
 
-        <button className="btn-primary" onClick={() => choose('accepted')}>
-          Accept
-        </button>
+      <InfoSection number="02" title="Essential hiking checklist">
+        <p>Prepare these items before leaving home:</p>
+        <ul className="space-y-3">
+          {checklist.map((item, index) => (
+            <li key={index} className="flex items-start gap-3">
+              <span className="mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-sage-50 text-sage-700">
+                ✓
+              </span>
+              {item}
+            </li>
+          ))}
+        </ul>
+      </InfoSection>
+
+      <InfoSection number="03" title="During the hike">
+        <ul className="list-disc space-y-2 pl-5">
+          <li>Follow marked paths and instructions from the trip organiser.</li>
+          <li>Do not leave the group without informing other members.</li>
+          <li>Take breaks and drink water regularly.</li>
+          <li>Respect wildlife and avoid damaging plants.</li>
+          <li>Do not attempt dangerous climbs or unfamiliar shortcuts.</li>
+        </ul>
+      </InfoSection>
+
+      <InfoSection number="04" title="Group hiking responsibilities">
+        <p>
+          Every participant should communicate clearly, respect other
+          hikers and follow the agreed trip plan.
+        </p>
+        <p>
+          Organisers should provide accurate trip information,
+          difficulty levels, meeting points and emergency contact details.
+        </p>
+      </InfoSection>
+
+      <InfoSection number="05" title="Emergency situations">
+        <p>
+          Stop in a safe place and contact local emergency services
+          when necessary. Share the location with trusted contacts
+          and provide first aid only within your ability.
+        </p>
+        <p>
+          If conditions become unsafe, prioritise returning to safety
+          instead of continuing the hike.
+        </p>
+      </InfoSection>
+
+      <div className="mt-8 rounded-2xl bg-sage-50 p-6">
+        <h3 className="font-bold text-ink">Leave no trace 🍃</h3>
+        <p className="mt-2 text-sm leading-7 text-stone-600">
+          Respect nature, minimise waste, protect local environments
+          and leave every trail as clean as it was found.
+        </p>
       </div>
-    </div>
+    </InfoLayout>
   );
 }
+
+// --------------------------------------------------
+// PRIVACY POLICY PAGE
+// --------------------------------------------------
+
+function PrivacyPage() {
+  return (
+    <InfoLayout
+      eyebrow="YOUR PRIVACY MATTERS"
+      title={<>Privacy <span className="text-sage-600">policy.</span></>}
+      subtitle="This policy explains how Hiking Buddy handles account information and community activity when members use the platform."
+    >
+      <div className="mb-6 flex flex-wrap gap-3 text-xs text-stone-400">
+        <span>Last updated: 5 November 2026</span>
+        <span>·</span>
+        <span>Hiking Buddy Community</span>
+      </div>
+
+      <InfoSection number="01" title="Information we collect">
+        <p>When using Hiking Buddy, the platform may collect:</p>
+        <ul className="list-disc space-y-2 pl-5">
+          <li>Account details such as name and email address.</li>
+          <li>Profile information such as city, fitness level and preferred pace.</li>
+          <li>Trip details, including meeting points and emergency contact information submitted by organisers.</li>
+          <li>Community posts, uploaded photos, likes and comments.</li>
+          <li>Cookie preferences and essential local storage information.</li>
+        </ul>
+      </InfoSection>
+
+      <InfoSection number="02" title="How information is used">
+        <p>Information is used to:</p>
+        <ul className="list-disc space-y-2 pl-5">
+          <li>Create and manage member accounts.</li>
+          <li>Display profiles and community contributions.</li>
+          <li>Organise group trips and manage participation.</li>
+          <li>Improve website features and user experience.</li>
+          <li>Maintain platform safety and prevent misuse.</li>
+        </ul>
+      </InfoSection>
+
+      <InfoSection number="03" title="Community information">
+        <p>
+          Community posts, comments and uploaded photos may be visible
+          to other visitors. Members should avoid sharing passwords,
+          financial information or other private details in public posts.
+        </p>
+        <p>
+          Trip organisers should only provide contact details that
+          are appropriate to share with trip participants.
+        </p>
+      </InfoSection>
+
+      <InfoSection number="04" title="Data storage and protection">
+        <p>
+          Hiking Buddy uses a Laravel backend and MySQL database
+          for supported account and community features. Some
+          preferences and session information are stored locally
+          in the browser.
+        </p>
+        <p>
+          Reasonable security measures should be maintained to protect
+          stored information against unauthorised access, alteration
+          or disclosure.
+        </p>
+      </InfoSection>
+
+      <InfoSection number="05" title="Information sharing">
+        <p>
+          Personal information should not be sold to third parties.
+          Information may be shared when necessary to operate requested
+          platform features or meet legal requirements.
+        </p>
+      </InfoSection>
+
+      <InfoSection number="06" title="Your choices">
+        <p>
+          Members can update available profile information, manage
+          cookie preferences and choose what information to share
+          in community posts.
+        </p>
+      </InfoSection>
+
+      <InfoSection number="07" title="Policy updates">
+        <p>
+          This policy may be updated when website features or
+          information-handling practices change. The latest version
+          will be published on this page.
+        </p>
+      </InfoSection>
+
+      <div className="mt-8 rounded-2xl bg-sage-50 p-6">
+        <h3 className="font-bold text-ink">Privacy comes first.</h3>
+        <p className="mt-2 text-sm leading-7 text-stone-600">
+          Think carefully before sharing personal information
+          with other members of the community.
+        </p>
+      </div>
+    </InfoLayout>
+  );
+}
+
+// --------------------------------------------------
+// COOKIE PREFERENCES PAGE
+// --------------------------------------------------
+
+function CookiePage() {
+  const [preferences, setPreferences] = useState({
+    essential: true,
+    analytics: false,
+    marketing: false,
+  });
+
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    try {
+      const consent = JSON.parse(
+        localStorage.getItem('hb-cookie-consent')
+      );
+
+      if (consent && Date.now() < consent.expiresAt) {
+        setPreferences(consent.preferences);
+      }
+    } catch {
+      // Use default preferences.
+    }
+  }, []);
+
+  const update = (key) => {
+    setPreferences(prev => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+    setSaved(false);
+  };
+
+  const saveChoices = (choices) => {
+    localStorage.setItem(
+      'hb-cookie-consent',
+      JSON.stringify({
+        preferences: choices,
+        expiresAt: Date.now() + 60 * 1000,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+
+    setPreferences(choices);
+    setSaved(true);
+  };
+
+  const categories = [
+    {
+      key: 'essential',
+      title: 'Essential cookies',
+      description: 'Required for basic website functions, security and essential preferences.',
+      required: true,
+    },
+    {
+      key: 'analytics',
+      title: 'Analytics cookies',
+      description: 'Help understand website usage and improve the Hiking Buddy experience.',
+    },
+    {
+      key: 'marketing',
+      title: 'Marketing cookies',
+      description: 'Support relevant promotional content and marketing activities.',
+    },
+  ];
+
+  return (
+    <InfoLayout
+      eyebrow="CONTROL YOUR EXPERIENCE"
+      title={<>Cookie <span className="text-sage-600">preferences.</span></>}
+      subtitle="Choose which cookie categories Hiking Buddy can use. Essential cookies are always enabled to keep the website working."
+    >
+      <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
+        <div className="border-b border-stone-100 p-5 sm:p-6">
+          <h2 className="font-bold text-ink">Manage your preferences</h2>
+          <p className="mt-2 text-sm leading-6 text-stone-500">
+            Optional categories can be enabled or disabled at any time.
+          </p>
+        </div>
+
+        <div className="divide-y divide-stone-100">
+          {categories.map(item => (
+            <div
+              key={item.key}
+              className="flex items-center justify-between gap-5 p-5 sm:p-6"
+            >
+              <div>
+                <h3 className="text-sm font-semibold text-ink">
+                  {item.title}
+                </h3>
+                <p className="mt-1 max-w-xl text-xs leading-6 text-stone-500">
+                  {item.description}
+                </p>
+                {item.required && (
+                  <span className="mt-2 inline-block text-xs font-semibold text-sage-700">
+                    Always active
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                role="switch"
+                aria-checked={Boolean(preferences[item.key])}
+                disabled={item.required}
+                onClick={() => update(item.key)}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+                  preferences[item.key]
+                    ? 'bg-[#25291f]'
+                    : 'bg-stone-300'
+                } ${item.required ? 'cursor-not-allowed opacity-70' : ''}`}
+              >
+                <span
+                  className={`absolute top-1 h-4 w-4 rounded-full bg-white transition ${
+                    preferences[item.key]
+                      ? 'left-6'
+                      : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap justify-between gap-3 border-t border-stone-100 bg-stone-50 p-5">
+          <button
+            onClick={() => saveChoices({
+              essential: true,
+              analytics: false,
+              marketing: false,
+            })}
+            className="rounded-lg border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-100"
+          >
+            Reject optional
+          </button>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => saveChoices({
+                essential: true,
+                analytics: true,
+                marketing: true,
+              })}
+              className="rounded-lg border border-stone-200 bg-white px-4 py-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-100"
+            >
+              Accept all
+            </button>
+
+            <button
+              onClick={() => saveChoices(preferences)}
+              className="rounded-lg bg-[#25291f] px-4 py-2.5 text-xs font-semibold text-white hover:bg-black"
+            >
+              Save preferences
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {saved && (
+        <p className="mt-4 rounded-xl bg-sage-50 p-4 text-sm font-medium text-sage-700">
+          ✓ Your cookie preferences have been saved.
+        </p>
+      )}
+
+      <div className="mt-7 rounded-2xl bg-sage-50 p-6">
+        <h3 className="font-bold text-ink">What are cookies?</h3>
+        <p className="mt-2 text-sm leading-7 text-stone-600">
+          Cookies and similar browser storage technologies help
+          websites remember settings and support different features.
+          Your choices determine which optional categories are permitted.
+        </p>
+      </div>
+    </InfoLayout>
+  );
+}
+
 
 // --------------------------------------------------
 // REPORT BUTTON
@@ -3896,6 +4495,23 @@ export default function App() {
           }
         />
 
+        
+        {/* INFORMATION PAGES */}
+
+        <Route
+        path="/safety"
+        element={<SafetyPage />}
+        />
+
+        <Route
+        path="/privacy"
+        element={<PrivacyPage />}
+        />
+
+        <Route
+        path="/cookies"
+        element={<CookiePage />}
+        />
 
         {/* NOT FOUND */}
         <Route
