@@ -7,7 +7,7 @@ import {
   CalendarDays, Clock3, Users, Gauge, Search, Copy, Check,
   Plus, LogOut, Settings, BadgeCheck, Compass, Send,
   Footprints, TentTree, Heart, Mail, LockKeyhole,
-  LayoutDashboard, Trash2, SlidersHorizontal
+  LayoutDashboard, Trash2, SlidersHorizontal, Bell, MessageCircle, CheckCheck
 } from 'lucide-react';
 import { trails, initialTrips } from './data';
 
@@ -89,7 +89,7 @@ const imgFallback =
 // HEADER
 // --------------------------------------------------
 
-function Header({ user, onLogout }) {
+function Header({ user, onLogout, unreadCount = 0 }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -139,7 +139,22 @@ function Header({ user, onLogout }) {
 
         <div className="flex items-center gap-3">
           {user ? (
-            <div className="hidden items-center gap-2 sm:flex">
+            <div className="flex items-center gap-2">
+              <Link
+                to="/notifications"
+                aria-label="Notifications"
+                title="Notifications"
+                className="relative icon-button"
+              >
+                <Bell size={19} />
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+
+              <div className="hidden items-center gap-2 sm:flex">
               <Link
                 to="/profile"
                 className="flex items-center gap-2 rounded-full bg-sage-50 py-1.5 pl-1.5 pr-3 text-sm font-semibold text-sage-700"
@@ -157,6 +172,7 @@ function Header({ user, onLogout }) {
               >
                 <LogOut size={17} />
               </button>
+              </div>
             </div>
           ) : (
             <Link to="/login" className="btn-primary !rounded-full !px-5 !py-2.5">
@@ -435,16 +451,6 @@ return (
   </>
 ); }
 
-
-<button
-  onClick={() => {
-    localStorage.removeItem('hb-cookie-consent');
-    window.location.reload();
-  }}
-  className="text-sm text-stone-500 hover:underline"
->
-  Cookie Settings
-</button>
 
 
 // --------------------------------------------------
@@ -4114,6 +4120,195 @@ function AuthPage({ mode, setUser }) {
 }
 
 // --------------------------------------------------
+// --------------------------------------------------
+// NOTIFICATIONS PAGE - Laravel database notifications
+// --------------------------------------------------
+
+function NotificationsPage({ token, onUnreadCountChange }) {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('trails');
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCounts, setUnreadCounts] = useState({ trails: 0, community: 0, total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [busyId, setBusyId] = useState(null);
+
+  const loadNotifications = async (showLoader = false) => {
+    if (!token) {
+      setError('Please log in to view notifications.');
+      setLoading(false);
+      return;
+    }
+
+    if (showLoader) setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/notifications?category=${activeTab}`, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to load notifications.');
+
+      const rows = Array.isArray(data.notifications?.data)
+        ? data.notifications.data
+        : Array.isArray(data.notifications) ? data.notifications : [];
+      const counts = data.unread_counts || { trails: 0, community: 0, total: 0 };
+
+      setNotifications(rows);
+      setUnreadCounts(counts);
+      onUnreadCountChange?.(Number(counts.total || 0));
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Unable to connect to the server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications(true);
+    const timer = window.setInterval(() => loadNotifications(false), 15000);
+    return () => window.clearInterval(timer);
+  }, [activeTab, token]);
+
+  const markAsRead = async (id) => {
+    setBusyId(id);
+    try {
+      const response = await fetch(`${API_BASE}/notifications/${id}/read`, {
+        method: 'PATCH',
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to mark notification as read.');
+      await loadNotifications(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/notifications/read-all`, {
+        method: 'PATCH',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ category: activeTab })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Unable to mark notifications as read.');
+      await loadNotifications(false);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const openNotification = async (notification) => {
+    if (!notification.read_at) await markAsRead(notification.id);
+    const target = notification.data?.url;
+    if (target && target.startsWith('/')) navigate(target);
+    else navigate(activeTab === 'trails' ? '/trails' : '/community');
+  };
+
+  const unreadInTab = Number(unreadCounts[activeTab] || 0);
+
+  return (
+    <main className="container-shell page-pad">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow">STAY CONNECTED</p>
+            <h1 className="page-title mt-3">Notifications</h1>
+            <p className="mt-3 text-sm leading-6 text-stone-500">Updates about group trips and community activities.</p>
+          </div>
+          <button
+            type="button"
+            onClick={markAllAsRead}
+            disabled={unreadInTab === 0}
+            className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-4 py-2.5 text-sm font-semibold text-stone-600 transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <CheckCheck size={17} /> Mark all as read
+          </button>
+        </div>
+
+        <div className="mb-6 flex border-b border-stone-200">
+          <button
+            type="button"
+            onClick={() => setActiveTab('trails')}
+            className={`flex items-center gap-2 border-b-2 px-5 py-4 text-sm font-semibold ${activeTab === 'trails' ? 'border-sage-600 text-sage-700' : 'border-transparent text-stone-400 hover:text-stone-700'}`}
+          >
+            <Mountain size={18} /> Trails
+            {unreadCounts.trails > 0 && <span className="rounded-full bg-sage-100 px-2 py-0.5 text-xs text-sage-700">{unreadCounts.trails}</span>}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('community')}
+            className={`flex items-center gap-2 border-b-2 px-5 py-4 text-sm font-semibold ${activeTab === 'community' ? 'border-sage-600 text-sage-700' : 'border-transparent text-stone-400 hover:text-stone-700'}`}
+          >
+            <MessageCircle size={18} /> Community
+            {unreadCounts.community > 0 && <span className="rounded-full bg-sage-100 px-2 py-0.5 text-xs text-sage-700">{unreadCounts.community}</span>}
+          </button>
+        </div>
+
+        <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
+          {loading ? (
+            <div className="p-12 text-center text-sm text-stone-400">Loading notifications...</div>
+          ) : error ? (
+            <div className="p-10 text-center">
+              <p className="text-sm text-red-600">{error}</p>
+              <button type="button" onClick={() => loadNotifications(true)} className="mt-3 text-sm font-semibold text-sage-700">Try again</button>
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="p-14 text-center">
+              <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-sage-50 text-sage-700">
+                {activeTab === 'trails' ? <Mountain size={24} /> : <MessageCircle size={24} />}
+              </div>
+              <h2 className="font-bold text-ink">No notifications yet</h2>
+              <p className="mt-2 text-sm text-stone-400">{activeTab === 'trails' ? 'Trip joins, departures and cancellations will appear here.' : 'Likes, comments and replies will appear here.'}</p>
+            </div>
+          ) : (
+            notifications.map(notification => {
+              const item = notification.data || {};
+              const isUnread = !notification.read_at;
+              return (
+                <button
+                  key={notification.id}
+                  type="button"
+                  onClick={() => openNotification(notification)}
+                  disabled={busyId === notification.id}
+                  className={`flex w-full items-start gap-4 border-b border-stone-100 p-5 text-left transition last:border-0 hover:bg-stone-50 disabled:opacity-60 ${isUnread ? 'bg-sage-50/60' : 'bg-white'}`}
+                >
+                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${activeTab === 'trails' ? 'bg-sage-100 text-sage-700' : 'bg-orange-50 text-orange-600'}`}>
+                    {activeTab === 'trails' ? <Mountain size={19} /> : <MessageCircle size={19} />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-bold text-ink">{item.title || 'New notification'}</span>
+                      {isUnread && <span className="h-2 w-2 shrink-0 rounded-full bg-sage-600" />}
+                    </span>
+                    <span className="mt-1 block text-sm leading-6 text-stone-600">{item.message || 'You have a new notification.'}</span>
+                    <span className="mt-2 block text-xs text-stone-400">{notification.created_at ? new Date(notification.created_at).toLocaleString() : ''}</span>
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
+
 // NOT FOUND
 // --------------------------------------------------
 
@@ -4140,6 +4335,7 @@ export default function App() {
   // -----------------------------------------------
 
   const [user, setUser] = useState(() => stored('hb-user', null));
+  const [unreadCount, setUnreadCount] = useState(0);
   const [trips, setTrips] = useState([]);
   const [mountains, setMountains] = useState([]);
   const [mountainsLoading, setMountainsLoading] = useState(true);
@@ -4184,6 +4380,39 @@ export default function App() {
         setUser(null);
       });
   }, []);
+
+  // -----------------------------------------------
+  // LOAD UNREAD NOTIFICATION COUNT
+  // -----------------------------------------------
+
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!user || !token) {
+      setUnreadCount(0);
+      return;
+    }
+
+    let active = true;
+    const loadUnreadCount = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/notifications`, {
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`
+          }
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (active) setUnreadCount(Number(data.unread_counts?.total || 0));
+      } catch (error) {
+        console.error('Notification count loading error:', error);
+      }
+    };
+
+    loadUnreadCount();
+    const timer = window.setInterval(loadUnreadCount, 15000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [user?.id]);
 
   // -----------------------------------------------
   // LOAD MOUNTAINS FROM LARAVEL
@@ -4371,7 +4600,7 @@ export default function App() {
 
   return (
     <>
-      <Header user={user} onLogout={logout} />
+      <Header user={user} onLogout={logout} unreadCount={unreadCount} />
 
       <Routes>
 
@@ -4443,6 +4672,21 @@ export default function App() {
           }
         />
 
+
+        {/* NOTIFICATIONS */}
+        <Route
+          path="/notifications"
+          element={
+            user ? (
+              <NotificationsPage
+                token={getAuthToken()}
+                onUnreadCountChange={setUnreadCount}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
 
         {/* PROFILE */}
         <Route

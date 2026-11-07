@@ -8,6 +8,8 @@ use App\Models\PostLike;
 use App\Models\PostComment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use App\Notifications\HikingBuddyNotification;
+use App\Models\User;
 
 class CommunityPostController extends Controller
 {
@@ -191,6 +193,23 @@ class CommunityPostController extends Controller
             $liked = true;
         }
 
+        // Notify the post owner about a new like
+        $actor = $request->user();
+        $postOwner = User::find($post->user_id);
+
+        if ($postOwner && $postOwner->id !== $actor->id) {
+            $postOwner->notify(new HikingBuddyNotification([
+                'category' => 'community',
+                'title' => 'New like',
+                'message' => $actor->name . ' liked your post.',
+                'url' => '/community',
+                'actor_id' => $actor->id,
+                'actor_name' => $actor->name,
+                'related_id' => $post->id,
+                'related_type' => 'community_post',
+            ]));
+        }
+
         return response()->json([
             'success' => true,
             'liked' => $liked,
@@ -236,6 +255,37 @@ class CommunityPostController extends Controller
         ]);
 
         $comment->load('user:id,name,email');
+
+        // Find the person who should receive the notification
+        $actor = $request->user();
+
+        $parentComment = !empty($validated['parent_id'])
+            ? PostComment::find($validated['parent_id'])
+            : null;
+
+        $recipientId = $parentComment
+            ? $parentComment->user_id
+            : $post->user_id;
+
+        $recipient = User::find($recipientId);
+
+        // Do not notify the person who wrote the comment
+        if ($recipient && $recipient->id !== $actor->id) {
+            $isReply = $parentComment !== null;
+
+            $recipient->notify(new HikingBuddyNotification([
+                'category' => 'community',
+                'title' => $isReply ? 'New reply' : 'New comment',
+                'message' => $isReply
+                    ? $actor->name . ' replied to your comment.'
+                    : $actor->name . ' commented on your post.',
+                'url' => '/community',
+                'actor_id' => $actor->id,
+                'actor_name' => $actor->name,
+                'related_id' => $post->id,
+                'related_type' => 'community_post',
+            ]));
+        }
 
         return response()->json([
             'success' => true,

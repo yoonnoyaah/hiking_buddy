@@ -8,24 +8,28 @@ use App\Models\TripMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Notifications\HikingBuddyNotification;
+use App\Models\User;
 
 class GroupTripController extends Controller
 {
     // Get all active group trips
     public function index()
     {
+        $currentUser = Auth::guard('sanctum')->user();
+
         $trips = GroupTrip::with('organizer:id,name')
             ->withCount([
-            'members as joined_count' => function ($query) {
-                $query->where('status', 'joined');
-            }
-        ])
-        ->withExists([
-            'members as is_joined' => function ($query) use ($currentUser) {
-                $query->where('user_id', $currentUser?->id ?? 0)
-                    ->where('status', 'joined');
-            }
-        ])
+                'members as joined_count' => function ($query) {
+                    $query->where('status', 'joined');
+                }
+            ])
+            ->withExists([
+                'members as is_joined' => function ($query) use ($currentUser) {
+                    $query->where('user_id', $currentUser?->id ?? 0)
+                        ->where('status', 'joined');
+                }
+            ])
             ->where('status', 'active')
             ->latest()
             ->get();
@@ -34,8 +38,6 @@ class GroupTripController extends Controller
             'success' => true,
             'trips' => $trips
         ]);
-
-        $currentUser = Auth::guard('sanctum')->user();
     }
 
     // Get one trip
@@ -145,6 +147,23 @@ class GroupTripController extends Controller
                 ]
             );
 
+            // Notify the trip organizer
+            $actor = $request->user();
+            $organizer = User::find($trip->organizer_id);
+
+            if ($organizer && $organizer->id !== $actor->id) {
+                $organizer->notify(new HikingBuddyNotification([
+                    'category' => 'trails',
+                    'title' => 'New trip member',
+                    'message' => $actor->name . ' joined your trip: ' . $trip->title,
+                    'url' => '/trails',
+                    'actor_id' => $actor->id,
+                    'actor_name' => $actor->name,
+                    'related_id' => $trip->id,
+                    'related_type' => 'group_trip',
+                ]));
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'You joined the trip successfully.'
@@ -169,6 +188,23 @@ class GroupTripController extends Controller
         $membership->update([
             'status' => 'left'
         ]);
+
+        // Notify the trip organizer
+        $actor = $request->user();
+        $organizer = User::find($trip->organizer_id);
+
+        if ($organizer && $organizer->id !== $actor->id) {
+            $organizer->notify(new HikingBuddyNotification([
+                'category' => 'trails',
+                'title' => 'Member left your trip',
+                'message' => $actor->name . ' left your trip: ' . $trip->title,
+                'url' => '/trails',
+                'actor_id' => $actor->id,
+                'actor_name' => $actor->name,
+                'related_id' => $trip->id,
+                'related_type' => 'group_trip',
+            ]));
+        }
 
         return response()->json([
             'success' => true,
@@ -197,6 +233,31 @@ class GroupTripController extends Controller
                 'message' => 'You are not allowed to delete this trip.'
             ], 403);
         }
+
+        // Notify all joined members before deleting the trip
+        $memberIds = TripMember::where('group_trip_id', $trip->id)
+            ->where('status', 'joined')
+            ->pluck('user_id')
+            ->unique();
+
+        $organizer = $request->user();
+
+        $members = User::whereIn('id', $memberIds)
+            ->where('id', '!=', $organizer->id)
+            ->get();
+
+        foreach ($members as $member) {
+            $member->notify(new HikingBuddyNotification([
+                'category' => 'trails',
+                'title' => 'Trip cancelled',
+                'message' => 'The trip "' . $trip->title . '" has been cancelled.',
+                'url' => '/trails',
+                'actor_id' => $organizer->id,
+                'actor_name' => $organizer->name,
+                'related_id' => $trip->id,
+                'related_type' => 'group_trip',
+            ]));
+}
 
         $trip->delete();
 
