@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\AdminMemberController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -77,14 +78,23 @@ Route::get('/mountains', [MountainController::class, 'index']);
 Route::get('/mountains/{id}', [MountainController::class, 'show']);
 
 // Protected routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware('auth:sanctum', 'active.account')->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
     Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::patch('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
+    Route::get('/admin/members', [AdminMemberController::class, 'index']);
+
+    Route::get('/admin/members/{id}/warnings', [AdminMemberController::class, 'warnings']);
+
+    Route::post('/admin/members/{id}/warnings', [AdminMemberController::class, 'warn']);
+
+    Route::patch('/admin/members/{id}/status', [AdminMemberController::class, 'updateStatus']);
 });
 
 // Public group trip routes

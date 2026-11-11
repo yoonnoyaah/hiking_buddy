@@ -146,19 +146,19 @@ tailwind.config={
     <p class="text-sm text-stone-500 mb-6">Sign in to manage the hiking community.</p>
 
     <div id="loginError" class="login-error mb-4">
-      ⚠️ Invalid credentials. Try <b>admin@hikingbuddy.com</b> / <b>admin123</b>
+      ⚠️ Invalid email or password.
     </div>
 
     <form id="loginForm" class="space-y-4">
       <label class="block text-sm font-medium">
         Email address
-        <input id="loginEmail" type="email" value="admin@hikingbuddy.com" required
-               placeholder="admin@hikingbuddy.com" class="mt-1.5"/>
+        <input id="loginEmail" type="email" required
+       placeholder="Enter admin email" class="mt-1.5"/>
       </label>
       <label class="block text-sm font-medium">
         Password
-        <input id="loginPassword" type="password" value="admin123" required
-               placeholder="••••••••" class="mt-1.5"/>
+        <input id="loginPassword" type="password" required
+       placeholder="Enter password" class="mt-1.5"/>
       </label>
       <div class="flex items-center justify-between text-xs text-stone-500">
         <label class="flex items-center gap-2 cursor-pointer">
@@ -170,7 +170,7 @@ tailwind.config={
     </form>
 
     <p class="mt-6 text-center text-xs text-stone-400">
-      Demo credentials pre-filled · Connect Laravel auth for production
+      Secure administrator access · Hiking Buddy
     </p>
   </div>
 </div>
@@ -191,7 +191,7 @@ tailwind.config={
 <div class="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Registered users</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-sage-50 text-sage-700">♙</span></div><div class="mt-4 flex items-end justify-between"><b id="kUsers" class="text-3xl">1,284</b><span class="text-xs font-semibold text-sage-700">↗ 12.8%</span></div><p class="mt-2 text-xs text-stone-400">vs. previous month</p></div><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Active trips this month</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-700">⌁</span></div><div class="mt-4 flex items-end justify-between"><b id="kTrips" class="text-3xl">86</b><span class="text-xs font-semibold text-sage-700">↗ 8.4%</span></div><p class="mt-2 text-xs text-stone-400">Trips published in October</p></div><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Mountains / trails</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-700">△</span></div><div class="mt-4 flex items-end justify-between"><b class="text-3xl">24</b><span class="text-xs font-semibold text-stone-400">Across 3 regions</span></div><p class="mt-2 text-xs text-stone-400">Curated destinations</p></div><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Member joins</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-rose-50 text-rose-700">♡</span></div><div class="mt-4 flex items-end justify-between"><b id="kJoins" class="text-3xl">642</b><span class="text-xs font-semibold text-sage-700">↗ 18.2%</span></div><p class="mt-2 text-xs text-stone-400">Total trip memberships</p></div></div>
 <div class="mt-5 grid gap-5 xl:grid-cols-[1.45fr_1fr]"><div class="panel p-5 md:p-6"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-bold">User growth over time</h3><p class="mt-1 text-xs text-stone-400">New registrations by month</p></div><select id="growthRange" class="rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs" onchange="updateGrowth()"><option value="6">Last 6 months</option><option value="12">Last 12 months</option></select></div><div class="mt-5 h-[260px]"><canvas id="growthChart"></canvas></div></div><div class="panel p-5 md:p-6"><div><h3 class="font-bold">Most popular mountains</h3><p class="mt-1 text-xs text-stone-400">Trips created by destination</p></div><div class="mt-5 h-[260px]"><canvas id="mountainChart"></canvas></div></div></div>
 <div class="mt-5 grid gap-5 xl:grid-cols-[1.2fr_.8fr]"><div class="panel"><div class="flex items-center justify-between p-5"><div><h3 class="font-bold">Recent members</h3><p class="mt-1 text-xs text-stone-400">Latest community sign-ups</p></div><button class="btn btn-soft" onclick="go('members')">View all →</button></div><div class="table-wrap"><table class="w-full"><thead><tr><th>Member</th><th>Joined</th><th>Status</th></tr></thead><tbody id="recentMembers"></tbody></table></div></div><div class="panel p-5"><div class="flex items-center justify-between"><div><h3 class="font-bold">Community health</h3><p class="mt-1 text-xs text-stone-400">Moderation snapshot</p></div><span class="pill bg-sage-100 text-sage-700">Live overview</span></div><div class="mt-5 space-y-5"><div><div class="flex justify-between text-sm"><span class="text-stone-500">Active members</span><b>94%</b></div><div class="mt-2 h-2 rounded-full bg-stone-100"><div class="h-2 w-[94%] rounded-full bg-sage-600"></div></div></div><div><div class="flex justify-between text-sm"><span class="text-stone-500">Trips with no flags</span><b>97%</b></div><div class="mt-2 h-2 rounded-full bg-stone-100"><div class="h-2 w-[97%] rounded-full bg-sage-600"></div></div></div><div><div class="flex justify-between text-sm"><span class="text-stone-500">Reports awaiting review</span><b id="pendingMini">3</b></div><div class="mt-2 h-2 rounded-full bg-stone-100"><div id="pendingBar" class="h-2 w-[28%] rounded-full bg-amber-500"></div></div></div></div><button onclick="go('reports')" class="btn btn-soft mt-6 w-full">Review flagged content →</button></div></div></section>
-<section id="page-members" class="page"><div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">COMMUNITY</p><h2 class="mt-2 text-2xl font-bold">Member management</h2><p class="mt-2 text-sm text-stone-500">Keep the community welcoming and safe.</p></div><button class="btn btn-green" onclick="addDemoMember()">＋ Add demo member</button></div><div class="panel mt-6"><div class="flex flex-col gap-3 border-b border-stone-100 p-4 md:flex-row md:items-center md:justify-between"><input id="memberSearch" oninput="renderMembers()" placeholder="Search name or email…" class="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm outline-none focus:border-sage-500 md:max-w-sm"/><select id="memberStatus" onchange="renderMembers()" class="rounded-xl border border-stone-200 px-3 py-2.5 text-sm"><option value="all">All statuses</option><option>Active</option><option>Banned</option></select></div><div class="table-wrap"><table class="w-full"><thead><tr><th>Member</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Action</th></tr></thead><tbody id="membersTable"></tbody></table></div><div class="border-t border-stone-100 p-4 text-xs text-stone-400" id="memberFoot"></div></div></section>
+<section id="page-members" class="page"><div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">COMMUNITY</p><h2 class="mt-2 text-2xl font-bold">Member management</h2><p class="mt-2 text-sm text-stone-500">Keep the community welcoming and safe.</p></div><span class="text-sm text-stone-400">Registered members from MySQL</span></div><div class="panel mt-6"><div class="flex flex-col gap-3 border-b border-stone-100 p-4 md:flex-row md:items-center md:justify-between"><input id="memberSearch" oninput="renderMembers()" placeholder="Search name or email…" class="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm outline-none focus:border-sage-500 md:max-w-sm"/><select id="memberStatus" onchange="renderMembers()" class="rounded-xl border border-stone-200 px-3 py-2.5 text-sm"><option value="all">All statuses</option><option>Active</option><option>Banned</option></select></div><div class="table-wrap"><table class="w-full"><thead><tr><th>Member</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Action</th></tr></thead><tbody id="membersTable"></tbody></table></div><div class="border-t border-stone-100 p-4 text-xs text-stone-400" id="memberFoot"></div></div></section>
 <section id="page-trips" class="page"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">SAFETY & CONTENT</p><h2 class="mt-2 text-2xl font-bold">Trip moderation</h2><p class="mt-2 text-sm text-stone-500">Review trip listings and remove unsafe or inappropriate posts.</p></div><div class="panel mt-6"><div class="flex flex-col gap-3 border-b border-stone-100 p-4 sm:flex-row sm:items-center sm:justify-between"><input id="tripSearch" oninput="renderTrips()" placeholder="Search trips, mountain or organizer…" class="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm outline-none focus:border-sage-500 sm:max-w-sm"/><select id="tripStatus" onchange="renderTrips()" class="rounded-xl border border-stone-200 px-3 py-2.5 text-sm"><option value="all">All trips</option><option>Upcoming</option><option>Past</option><option>Flagged</option></select></div><div class="table-wrap"><table class="w-full"><thead><tr><th>Trip / mountain</th><th>Organizer</th><th>Date</th><th>Members</th><th>Status</th><th>Action</th></tr></thead><tbody id="tripsTable"></tbody></table></div><div class="border-t border-stone-100 p-4 text-xs text-stone-400" id="tripFoot"></div></div></section>
 <section id="page-reports" class="page"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">TRUST & SAFETY</p><h2 class="mt-2 text-2xl font-bold">Reports & flags</h2><p class="mt-2 text-sm text-stone-500">Review concerns submitted by hikers and take appropriate action.</p></div><div id="reportsList" class="mt-6 grid gap-4 lg:grid-cols-2"></div></section>
 <section id="page-settings" class="page"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">PLATFORM</p><h2 class="mt-2 text-2xl font-bold">Announcements & settings</h2><p class="mt-2 text-sm text-stone-500">Share important community updates and review recent admin activity.</p></div><div class="mt-6 grid gap-5 xl:grid-cols-2"><div class="panel p-5 md:p-6"><h3 class="font-bold">Platform announcement</h3><p class="mt-1 text-sm text-stone-500">Create a notice for members across the community.</p><form id="announcementForm" class="mt-5 space-y-4"><label class="block text-sm font-medium">Announcement title<input id="announcementTitle" required maxlength="90" class="mt-2 w-full rounded-xl border border-stone-200 px-4 py-3 text-sm outline-none focus:border-sage-500" placeholder="e.g. Stay safe on rainy trails"/></label><label class="block text-sm font-medium">Message<textarea id="announcementBody" required rows="4" maxlength="500" class="mt-2 w-full rounded-xl border border-stone-200 px-4 py-3 text-sm outline-none focus:border-sage-500" placeholder="Write a clear, friendly community update…"></textarea></label><button class="btn btn-green" type="submit">Publish announcement ↗</button></form><div id="announcementList" class="mt-6 space-y-3"></div></div><div class="panel p-5 md:p-6"><h3 class="font-bold">Recent activity log</h3><p class="mt-1 text-sm text-stone-500">Actions performed in this demo dashboard.</p><div id="activityList" class="mt-5 space-y-4"></div><div class="mt-5 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800">Demo note: activity is stored in this browser only. A production platform should record immutable audit logs on the server.</div></div></div></section>
@@ -205,46 +205,99 @@ const dashboard = document.getElementById('dashboard');
 const loginForm = document.getElementById('loginForm');
 const loginError = document.getElementById('loginError');
 
-const VALID_EMAIL = 'admin@hikingbuddy.com';
-const VALID_PASSWORD = 'admin123';
 
-// Check if already logged in (sessionStorage for demo)
-if (sessionStorage.getItem('hb-admin-logged-in') === 'true') {
-  loginScreen.classList.add('hidden');
-  dashboard.classList.remove('dimmed');
-}
+const API_BASE = 'http://127.0.0.1:8000/api';
 
-loginForm.addEventListener('submit', function(e) {
+loginForm.addEventListener('submit', async function(e) {
   e.preventDefault();
-  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+
+  const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
 
-  if (email === VALID_EMAIL && password === VALID_PASSWORD) {
+  const submitButton = loginForm.querySelector('button[type="submit"]');
+  submitButton.disabled = true;
+  submitButton.textContent = 'Signing in...';
+
+  try {
+    const response = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Invalid email or password.');
+    }
+
+    if (!data.user || data.user.role !== 'admin') {
+      // Do not allow ordinary members into the admin console.
+      if (data.token) {
+        await fetch(`${API_BASE}/logout`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${data.token}`
+          }
+        });
+      }
+
+      throw new Error('Access denied. This account is not an administrator.');
+    }
+
+    if (!data.token) {
+      throw new Error('Login succeeded, but no authentication token was returned.');
+    }
+
+    sessionStorage.setItem('hb-admin-token', data.token);
+    sessionStorage.setItem('hb-admin-user', JSON.stringify(data.user));
+
     loginError.classList.remove('show');
     loginScreen.classList.add('hidden');
     dashboard.classList.remove('dimmed');
-    sessionStorage.setItem('hb-admin-logged-in', 'true');
+
     log('Admin signed in');
-    // Initialize dashboard after login
+    dashboardInitialized = false;
     initDashboard();
-  } else {
+
+  } catch (error) {
+    loginError.textContent = '⚠️ ' + error.message;
     loginError.classList.add('show');
-    // Shake animation
-    const card = document.querySelector('.login-card');
-    card.style.animation = 'none';
-    card.offsetHeight;
-    card.style.animation = 'shake 0.35s ease';
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = 'Sign in to dashboard →';
   }
 });
 
-function signOut() {
+
+async function signOut() {
   if (!confirm('Sign out of the admin console?')) return;
-  sessionStorage.removeItem('hb-admin-logged-in');
+
+  const token = sessionStorage.getItem('hb-admin-token');
+
+  try {
+    if (token) {
+      await fetch(`${API_BASE}/logout`, {
+        method: 'POST',
+        headers: adminHeaders()
+      });
+    }
+  } catch (error) {
+    console.error('Logout request failed:', error);
+  }
+
+  sessionStorage.removeItem('hb-admin-token');
+  sessionStorage.removeItem('hb-admin-user');
+
   loginScreen.classList.remove('hidden');
   dashboard.classList.add('dimmed');
-  // Reset error
   loginError.classList.remove('show');
 }
+
 
 // Add shake keyframes dynamically
 const styleSheet = document.createElement('style');
@@ -258,6 +311,66 @@ styleSheet.textContent = `
   }
 `;
 document.head.appendChild(styleSheet);
+
+
+let serverMembers = [];
+
+function adminHeaders() {
+  const token = sessionStorage.getItem('hb-admin-token');
+
+  return {
+    'Accept': 'application/json',
+    'Authorization': `Bearer ${token}`
+  };
+}
+
+async function loadMembers() {
+  const table = document.getElementById('membersTable');
+  table.innerHTML = `
+    <tr>
+      <td colspan="6" class="py-10 text-center text-stone-400">
+        Loading members from MySQL...
+      </td>
+    </tr>
+  `;
+
+  try {
+    const response = await fetch(`${API_BASE}/admin/members`, {
+      method: 'GET',
+      headers: adminHeaders()
+    });
+
+    const data = await response.json();
+
+    if (response.status === 401 || response.status === 403) {
+      throw new Error(data.message || 'You are not authorised to view members.');
+    }
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || 'Could not load members.');
+    }
+
+    serverMembers = data.members || [];
+    renderMembers();
+    renderRecent();
+
+    document.getElementById('kUsers').textContent =
+      serverMembers.length.toLocaleString();
+
+  } catch (error) {
+    table.innerHTML = `
+      <tr>
+        <td colspan="6" class="py-10 text-center text-red-500">
+          ${esc(error.message)}
+        </td>
+      </tr>
+    `;
+
+    document.getElementById('memberFoot').textContent =
+      'Unable to load members. Check the Laravel server and login.';
+  }
+}
+
 
 /* ===== DASHBOARD LOGIC ===== */
 const key = 'hb-admin-state-v1';
@@ -303,6 +416,7 @@ function initDashboard() {
   if (dashboardInitialized) return;
   dashboardInitialized = true;
   renderAll();
+  loadMembers();
   drawCharts();
   const initial = location.hash.replace('#','');
   if (['overview','members','trips','reports','settings'].includes(initial)) go(initial);
@@ -345,39 +459,225 @@ function badge(status) {
   return `<span class="pill ${c}">${esc(status)}</span>`;
 }
 
+
+
 function renderMembers() {
   const q = (document.getElementById('memberSearch')?.value || '').toLowerCase();
   const filter = document.getElementById('memberStatus')?.value || 'all';
-  const list = state.members.filter(m =>
-    (m.name + ' ' + m.email).toLowerCase().includes(q) && (filter === 'all' || m.status === filter)
-  );
-  document.getElementById('membersTable').innerHTML = list.map(m =>
-    `<tr>
-      <td><div class="flex items-center gap-3">
-        <span class="grid h-9 w-9 place-items-center rounded-full bg-sage-100 font-semibold text-sage-700">${esc(m.name.split(' ').map(x=>x[0]).join('').slice(0,2))}</span>
-        <span class="font-semibold">${esc(m.name)}</span>
-      </div></td>
-      <td class="text-stone-500">${esc(m.email)}</td>
-      <td>${esc(m.role)}</td>
-      <td>${badge(m.status)}</td>
-      <td class="text-stone-500">${esc(m.joined)}</td>
-      <td>
-        <button class="btn ${m.status === 'Banned' ? 'btn-soft' : 'btn-red'}" onclick="toggleBan(${m.id})">${m.status === 'Banned' ? 'Unban' : 'Ban'}</button>
-        <button class="btn btn-soft" onclick="deleteMember(${m.id})">Delete</button>
+
+  const list = serverMembers.filter(m => {
+    const status = String(m.status || '').toLowerCase();
+
+    return (
+      (m.name + ' ' + m.email).toLowerCase().includes(q) &&
+      (filter === 'all' || status === filter.toLowerCase())
+    );
+  });
+
+  document.getElementById('membersTable').innerHTML = list.map(m => {
+    const status = String(m.status || '').toLowerCase();
+    const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
+    const displayRole = String(m.role || 'member');
+    const isAdmin = displayRole.toLowerCase() === 'admin';
+
+    return `
+      <tr>
+        <td>
+          <div class="flex items-center gap-3">
+            <span class="grid h-9 w-9 place-items-center rounded-full bg-sage-100 font-semibold text-sage-700">
+              ${esc(m.name.split(' ').map(x => x[0]).join('').slice(0, 2))}
+            </span>
+            <span class="font-semibold">${esc(m.name)}</span>
+          </div>
+        </td>
+
+        <td class="text-stone-500">${esc(m.email)}</td>
+
+        <td>${esc(displayRole.charAt(0).toUpperCase() + displayRole.slice(1))}</td>
+
+        <td>${badge(displayStatus)}</td>
+
+        <td class="text-stone-500">${esc(m.joined || '—')}</td>
+
+        <td>
+          <div class="flex items-center gap-2">
+            <button
+              class="btn btn-soft"
+              onclick="viewMember(${m.id})">
+              View
+            </button>
+
+            ${!isAdmin ? `
+              <button
+                class="btn btn-soft"
+                onclick="warnMember(${m.id})"
+                ${status === 'banned' ? 'disabled' : ''}>
+                Warn
+              </button>
+
+              <button
+                class="btn ${status === 'banned' ? 'btn-green' : 'btn-red'}"
+                onclick="toggleBan(${m.id})">
+                ${status === 'banned' ? 'Unban' : 'Ban'}
+              </button>
+            ` : `
+              <span class="text-xs text-stone-400">Protected account</span>
+            `}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('') || `
+    <tr>
+      <td colspan="6" class="py-10 text-center text-stone-400">
+        No members match this search.
       </td>
-    </tr>`
-  ).join('') || '<tr><td colspan="6" class="py-10 text-center text-stone-400">No members match this search.</td></tr>';
-  document.getElementById('memberFoot').textContent = `Showing ${list.length} of ${state.members.length} members`;
+    </tr>
+  `;
+
+  document.getElementById('memberFoot').textContent =
+    `Showing ${list.length} of ${serverMembers.length} registered members`;
 }
 
-function toggleBan(id) {
-  const m = state.members.find(x => x.id === id);
-  if (!m) return;
-  const next = m.status === 'Banned' ? 'Active' : 'Banned';
-  if (!confirm(`${next === 'Banned' ? 'Ban' : 'Unban'} ${m.name}?`)) return;
-  m.status = next;
-  log(`${next === 'Banned' ? 'Banned' : 'Unbanned'} member: ${m.name}`);
-  persist();
+
+
+// View member information and warning history
+async function viewMember(id) {
+  const member = serverMembers.find(m => Number(m.id) === Number(id));
+
+  if (!member) return;
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/admin/members/${id}/warnings`,
+      { headers: adminHeaders() }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Could not load member details.');
+    }
+
+    const warningHistory = (data.warnings || []).map((w, index) =>
+      `${index + 1}. ${w.reason}\nDate: ${new Date(w.created_at).toLocaleString()}\nIssued by: ${w.admin_name || 'Administrator'}`
+    ).join('\n\n');
+
+    alert(
+      `MEMBER DETAILS\n\n` +
+      `Name: ${member.name}\n` +
+      `Email: ${member.email}\n` +
+      `Role: ${member.role}\n` +
+      `Status: ${member.status}\n` +
+      `Joined: ${member.joined || '—'}\n\n` +
+      `WARNING HISTORY\n\n` +
+      (warningHistory || 'No warnings recorded.')
+    );
+
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+
+// Issue a warning and save it in MySQL
+async function warnMember(id) {
+  const member = serverMembers.find(m => Number(m.id) === Number(id));
+
+  if (!member || member.status === 'banned') return;
+
+  const reason = prompt(`Enter the warning reason for ${member.name}:`);
+
+  if (reason === null) return;
+
+  if (!reason.trim()) {
+    alert('Please enter a warning reason.');
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/admin/members/${id}/warnings`,
+      {
+        method: 'POST',
+        headers: {
+          ...adminHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: reason.trim() })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Could not issue warning.');
+    }
+
+    alert('Warning issued and saved successfully.');
+
+    log(`Issued warning to ${member.name}`);
+
+    await loadMembers();
+
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+
+// Ban or unban a member using Laravel
+async function toggleBan(id) {
+  const member = serverMembers.find(m => Number(m.id) === Number(id));
+
+  if (!member) return;
+
+  const currentlyBanned =
+    String(member.status).toLowerCase() === 'banned';
+
+  const newStatus = currentlyBanned ? 'active' : 'banned';
+
+  if (currentlyBanned) {
+    if (!confirm(`Are you sure you want to unban ${member.name}?`)) {
+      return;
+    }
+  } else {
+    if (!confirm(
+      `Are you sure you want to ban ${member.name}?\n\n` +
+      `This member must have received at least one warning first.`
+    )) {
+      return;
+    }
+  }
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/admin/members/${id}/status`,
+      {
+        method: 'PATCH',
+        headers: {
+          ...adminHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Could not update member status.');
+    }
+
+    alert(data.message);
+
+    log(`${currentlyBanned ? 'Unbanned' : 'Banned'} member: ${member.name}`);
+
+    await loadMembers();
+
+  } catch (error) {
+    alert(error.message);
+  }
 }
 
 function deleteMember(id) {
@@ -537,15 +837,32 @@ function deleteAnnouncement(id) {
   persist();
 }
 
+
 function renderRecent() {
-  document.getElementById('recentMembers').innerHTML = state.members.slice(0, 4).map(m =>
-    `<tr>
-      <td><div class="font-semibold">${esc(m.name)}</div><div class="mt-1 text-xs text-stone-400">${esc(m.email)}</div></td>
-      <td class="text-stone-500">${esc(m.joined)}</td>
-      <td>${badge(m.status)}</td>
-    </tr>`
-  ).join('');
+  document.getElementById('recentMembers').innerHTML =
+    serverMembers.slice(0, 4).map(m => {
+      const status = String(m.status || '').toLowerCase();
+      const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
+
+      return `
+        <tr>
+          <td>
+            <div class="font-semibold">${esc(m.name)}</div>
+            <div class="mt-1 text-xs text-stone-400">${esc(m.email)}</div>
+          </td>
+          <td class="text-stone-500">${esc(m.joined || '—')}</td>
+          <td>${badge(displayStatus)}</td>
+        </tr>
+      `;
+    }).join('') || `
+      <tr>
+        <td colspan="3" class="py-8 text-center text-stone-400">
+          No registered members yet.
+        </td>
+      </tr>
+    `;
 }
+
 
 function renderAll() {
   renderMembers();
@@ -652,10 +969,61 @@ document.getElementById('menuBtn').onclick = () => {
 };
 scrim.onclick = closeMenu;
 
-// Initialize dashboard if already logged in
-if (sessionStorage.getItem('hb-admin-logged-in') === 'true') {
-  initDashboard();
+// Restore admin session when the page is refreshed
+async function restoreAdminSession() {
+  const token = sessionStorage.getItem('hb-admin-token');
+
+  // If there is no saved token, show the login screen
+  if (!token) {
+    loginScreen.classList.remove('hidden');
+    dashboard.classList.add('dimmed');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/user`, {
+      method: 'GET',
+      headers: adminHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error('Admin session expired.');
+    }
+
+    const data = await response.json();
+
+    const savedUser = JSON.parse(
+      sessionStorage.getItem('hb-admin-user') || '{}'
+    );
+
+    const currentUser = data.user || data;
+
+    if ((currentUser.role || savedUser.role) !== 'admin') {
+      throw new Error('Admin access is required.');
+    }
+
+    // Restore the dashboard
+    loginScreen.classList.add('hidden');
+    dashboard.classList.remove('dimmed');
+
+    // Load the previously selected page
+    dashboardInitialized = false;
+    initDashboard();
+
+  } catch (error) {
+    console.error('Session restoration failed:', error);
+
+    sessionStorage.removeItem('hb-admin-token');
+    sessionStorage.removeItem('hb-admin-user');
+
+    loginScreen.classList.remove('hidden');
+    dashboard.classList.add('dimmed');
+  }
 }
+
+// Run session restoration when the page loads
+restoreAdminSession();
+
 </script>
 </body>
 </html>

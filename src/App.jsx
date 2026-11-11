@@ -4128,7 +4128,7 @@ function NotificationsPage({ token, onUnreadCountChange }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('trails');
   const [notifications, setNotifications] = useState([]);
-  const [unreadCounts, setUnreadCounts] = useState({ trails: 0, community: 0, total: 0 });
+  const [unreadCounts, setUnreadCounts] = useState({ trails: 0, community: 0, account: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
@@ -4155,7 +4155,7 @@ function NotificationsPage({ token, onUnreadCountChange }) {
       const rows = Array.isArray(data.notifications?.data)
         ? data.notifications.data
         : Array.isArray(data.notifications) ? data.notifications : [];
-      const counts = data.unread_counts || { trails: 0, community: 0, total: 0 };
+      const counts = data.unread_counts || { trails: 0, community: 0, account: 0, total: 0 };
 
       setNotifications(rows);
       setUnreadCounts(counts);
@@ -4215,9 +4215,20 @@ function NotificationsPage({ token, onUnreadCountChange }) {
 
   const openNotification = async (notification) => {
     if (!notification.read_at) await markAsRead(notification.id);
+
     const target = notification.data?.url;
-    if (target && target.startsWith('/')) navigate(target);
-    else navigate(activeTab === 'trails' ? '/trails' : '/community');
+
+    if (target && target.startsWith('/')) {
+      navigate(target);
+    } else {
+      navigate(
+        activeTab === 'trails'
+          ? '/trails'
+          : activeTab === 'community'
+            ? '/community'
+            : '/profile'
+      );
+    }
   };
 
   const unreadInTab = Number(unreadCounts[activeTab] || 0);
@@ -4229,7 +4240,7 @@ function NotificationsPage({ token, onUnreadCountChange }) {
           <div>
             <p className="eyebrow">STAY CONNECTED</p>
             <h1 className="page-title mt-3">Notifications</h1>
-            <p className="mt-3 text-sm leading-6 text-stone-500">Updates about group trips and community activities.</p>
+            <p className="mt-3 text-sm leading-6 text-stone-500">Stay updated about hiking activities, community interactions and account status.</p>
           </div>
           <button
             type="button"
@@ -4241,24 +4252,63 @@ function NotificationsPage({ token, onUnreadCountChange }) {
           </button>
         </div>
 
-        <div className="mb-6 flex border-b border-stone-200">
+        
+        <div className="mb-6 flex flex-wrap border-b border-stone-200">
           <button
             type="button"
             onClick={() => setActiveTab('trails')}
-            className={`flex items-center gap-2 border-b-2 px-5 py-4 text-sm font-semibold ${activeTab === 'trails' ? 'border-sage-600 text-sage-700' : 'border-transparent text-stone-400 hover:text-stone-700'}`}
+            className={`flex items-center gap-2 border-b-2 px-5 py-4 text-sm font-semibold ${
+              activeTab === 'trails'
+                ? 'border-sage-600 text-sage-700'
+                : 'border-transparent text-stone-400 hover:text-stone-700'
+            }`}
           >
-            <Mountain size={18} /> Trails
-            {unreadCounts.trails > 0 && <span className="rounded-full bg-sage-100 px-2 py-0.5 text-xs text-sage-700">{unreadCounts.trails}</span>}
+            <Mountain size={18} />
+            Trails
+            {unreadCounts.trails > 0 && (
+              <span className="rounded-full bg-sage-100 px-2 py-0.5 text-xs text-sage-700">
+                {unreadCounts.trails}
+              </span>
+            )}
           </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('community')}
-            className={`flex items-center gap-2 border-b-2 px-5 py-4 text-sm font-semibold ${activeTab === 'community' ? 'border-sage-600 text-sage-700' : 'border-transparent text-stone-400 hover:text-stone-700'}`}
+            className={`flex items-center gap-2 border-b-2 px-5 py-4 text-sm font-semibold ${
+              activeTab === 'community'
+                ? 'border-sage-600 text-sage-700'
+                : 'border-transparent text-stone-400 hover:text-stone-700'
+            }`}
           >
-            <MessageCircle size={18} /> Community
-            {unreadCounts.community > 0 && <span className="rounded-full bg-sage-100 px-2 py-0.5 text-xs text-sage-700">{unreadCounts.community}</span>}
+            <MessageCircle size={18} />
+            Community
+            {unreadCounts.community > 0 && (
+              <span className="rounded-full bg-sage-100 px-2 py-0.5 text-xs text-sage-700">
+                {unreadCounts.community}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('account')}
+            className={`flex items-center gap-2 border-b-2 px-5 py-4 text-sm font-semibold ${
+              activeTab === 'account'
+                ? 'border-sage-600 text-sage-700'
+                : 'border-transparent text-stone-400 hover:text-stone-700'
+            }`}
+          >
+            <LockKeyhole size={18} />
+            Account
+            {unreadCounts.account > 0 && (
+              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
+                {unreadCounts.account}
+              </span>
+            )}
           </button>
         </div>
+
 
         <section className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
           {loading ? (
@@ -4271,10 +4321,22 @@ function NotificationsPage({ token, onUnreadCountChange }) {
           ) : notifications.length === 0 ? (
             <div className="p-14 text-center">
               <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-sage-50 text-sage-700">
-                {activeTab === 'trails' ? <Mountain size={24} /> : <MessageCircle size={24} />}
+               {activeTab === 'trails' ? (
+                  <Mountain size={24} />
+                ) : activeTab === 'community' ? (
+                  <MessageCircle size={24} />
+                ) : (
+                  <LockKeyhole size={24} />
+                )}
               </div>
               <h2 className="font-bold text-ink">No notifications yet</h2>
-              <p className="mt-2 text-sm text-stone-400">{activeTab === 'trails' ? 'Trip joins, departures and cancellations will appear here.' : 'Likes, comments and replies will appear here.'}</p>
+              <p className="mt-2 text-sm text-stone-400">
+                {activeTab === 'trails'
+                  ? 'Trip joins, departures and cancellations will appear here.'
+                  : activeTab === 'community'
+                    ? 'Likes, comments and replies will appear here.'
+                    : 'Account warnings, bans and reactivation updates will appear here.'}
+              </p>
             </div>
           ) : (
             notifications.map(notification => {
@@ -4288,8 +4350,20 @@ function NotificationsPage({ token, onUnreadCountChange }) {
                   disabled={busyId === notification.id}
                   className={`flex w-full items-start gap-4 border-b border-stone-100 p-5 text-left transition last:border-0 hover:bg-stone-50 disabled:opacity-60 ${isUnread ? 'bg-sage-50/60' : 'bg-white'}`}
                 >
-                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${activeTab === 'trails' ? 'bg-sage-100 text-sage-700' : 'bg-orange-50 text-orange-600'}`}>
-                    {activeTab === 'trails' ? <Mountain size={19} /> : <MessageCircle size={19} />}
+                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${
+                    activeTab === 'trails'
+                      ? 'bg-sage-100 text-sage-700'
+                      : activeTab === 'community'
+                        ? 'bg-orange-50 text-orange-600'
+                        : 'bg-red-50 text-red-600'
+                  }`}>
+                    {activeTab === 'trails' ? (
+                      <Mountain size={19} />
+                    ) : activeTab === 'community' ? (
+                      <MessageCircle size={19} />
+                    ) : (
+                      <LockKeyhole size={19} />
+                    )}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-3">
@@ -4344,7 +4418,7 @@ export default function App() {
   // -----------------------------------------------
   // VERIFY LOGIN TOKEN WITH LARAVEL
   // -----------------------------------------------
-
+  
   useEffect(() => {
     const token = getAuthToken();
 
@@ -4354,32 +4428,116 @@ export default function App() {
       return;
     }
 
-    fetch(`${API_BASE}/user`, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${token}`
-      }
-    })
-      .then(async response => {
+    let active = true;
+    let logoutStarted = false;
+
+    const endSession = (message) => {
+      if (!active || logoutStarted) return;
+
+      logoutStarted = true;
+
+      // Clear the saved login information
+      localStorage.removeItem('hb-token');
+      localStorage.removeItem('hb-user');
+
+      setUser(null);
+      setUnreadCount(0);
+
+      // Inform the member before redirecting
+      window.alert(message);
+
+      // Redirect to the login page
+      window.location.replace('/login?reason=banned');
+    };
+
+    const verifyAccount = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/user`, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`
+          }
+        });
+
         const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || 'Your login session has expired.');
+
+        // The backend blocks banned accounts with this response
+        if (
+          response.status === 403 &&
+          data.code === 'ACCOUNT_BANNED'
+        ) {
+          endSession(
+            'Your account has been banned by an administrator. You have been logged out. Please contact the administrator for more information.'
+          );
+          return;
         }
-        return data;
-      })
-      .then(data => {
+
+        // Handle expired or invalid login tokens
+        if (response.status === 401) {
+          endSession(
+            'Your login session has expired. Please log in again.'
+          );
+          return;
+        }
+
+        if (!response.ok) {
+          console.error('Account verification failed:', data.message);
+          return;
+        }
+
+        // Additional account-status check
+        if (data.user?.status && data.user.status !== 'active') {
+          endSession(
+            'Your account is currently unavailable. Please contact the administrator.'
+          );
+          return;
+        }
+
+        if (!active || !data.user) return;
+
+        // Update the saved user information
         const currentUser = mapApiUser(data.user);
-        localStorage.setItem('hb-user', JSON.stringify(currentUser));
-        setUser(currentUser);
-      })
-      .catch(error => {
-        console.error('Login verification failed:', error);
-        localStorage.removeItem('hb-token');
-        localStorage.removeItem('hb-user');
-        setUser(null);
-      });
-  }, []);
+
+        localStorage.setItem(
+          'hb-user',
+          JSON.stringify(currentUser)
+        );
+
+        setUser(previous =>
+          JSON.stringify(previous) === JSON.stringify(currentUser)
+            ? previous
+            : currentUser
+        );
+
+      } catch (error) {
+        // Do not log out members just because the server
+        // temporarily cannot be reached.
+        console.error('Account verification error:', error);
+      }
+    };
+
+  // Verify immediately
+  verifyAccount();
+
+  // Check account status every 10 seconds
+  const timer = window.setInterval(verifyAccount, 10000);
+
+  // Check again when the member returns to the browser tab
+  const handleFocus = () => {
+    verifyAccount();
+  };
+
+  window.addEventListener('focus', handleFocus);
+
+  return () => {
+    active = false;
+    window.clearInterval(timer);
+    window.removeEventListener('focus', handleFocus);
+  };
+
+}, [user?.id]);
+
 
   // -----------------------------------------------
   // LOAD UNREAD NOTIFICATION COUNT

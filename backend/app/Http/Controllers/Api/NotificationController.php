@@ -11,12 +11,11 @@ class NotificationController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-
         $category = $request->query('category');
 
         $query = $user->notifications();
 
-        if (in_array($category, ['trails', 'community'])) {
+        if (in_array($category, ['trails', 'community', 'account'])) {
             $query->where('data->category', $category);
         }
 
@@ -27,6 +26,7 @@ class NotificationController extends Controller
         return response()->json([
             'success' => true,
             'notifications' => $notifications,
+
             'unread_counts' => [
                 'trails' => $user->unreadNotifications()
                     ->where('data->category', 'trails')
@@ -34,6 +34,10 @@ class NotificationController extends Controller
 
                 'community' => $user->unreadNotifications()
                     ->where('data->category', 'community')
+                    ->count(),
+
+                'account' => $user->unreadNotifications()
+                    ->where('data->category', 'account')
                     ->count(),
 
                 'total' => $user->unreadNotifications()->count(),
@@ -64,14 +68,14 @@ class NotificationController extends Controller
         ]);
     }
 
-    // Mark all notifications as read
+    // Mark all notifications in a category as read
     public function markAllAsRead(Request $request)
     {
         $category = $request->input('category');
 
         $query = $request->user()->unreadNotifications();
 
-        if (in_array($category, ['trails', 'community'])) {
+        if (in_array($category, ['trails', 'community', 'account'])) {
             $query->where('data->category', $category);
         }
 
