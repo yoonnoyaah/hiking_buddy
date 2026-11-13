@@ -351,7 +351,6 @@ tailwind.config={
 </div>
 
 
-
 <!-- ========== DASHBOARD ========== -->
 
 <div id="dashboard" class="min-h-screen flex dimmed">
@@ -386,7 +385,58 @@ tailwind.config={
 
 <section id="page-overview" class="page active"><div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">COMMUNITY HEALTH</p><h2 class="mt-2 text-2xl font-bold tracking-tight md:text-3xl">Good morning, Admin <span>🌿</span></h2><p class="mt-2 text-sm text-stone-500">A clear view of the people and trips shaping the community.</p></div><button class="btn btn-soft" onclick="exportData()">↓ Export overview</button></div>
 
-<div class="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Registered users</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-sage-50 text-sage-700">♙</span></div><div class="mt-4 flex items-end justify-between"><b id="kUsers" class="text-3xl">1,284</b><span class="text-xs font-semibold text-sage-700">↗ 12.8%</span></div><p class="mt-2 text-xs text-stone-400">vs. previous month</p></div><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Active trips this month</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-700">⌁</span></div><div class="mt-4 flex items-end justify-between"><b id="kTrips" class="text-3xl">86</b><span class="text-xs font-semibold text-sage-700">↗ 8.4%</span></div><p class="mt-2 text-xs text-stone-400">Trips published in October</p></div><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Mountains / trails</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-700">△</span></div><div class="mt-4 flex items-end justify-between"><b class="text-3xl">24</b><span class="text-xs font-semibold text-stone-400">Across 3 regions</span></div><p class="mt-2 text-xs text-stone-400">Curated destinations</p></div><div class="panel p-5"><div class="flex items-center justify-between"><span class="text-sm text-stone-500">Member joins</span><span class="grid h-9 w-9 place-items-center rounded-xl bg-rose-50 text-rose-700">♡</span></div><div class="mt-4 flex items-end justify-between"><b id="kJoins" class="text-3xl">642</b><span class="text-xs font-semibold text-sage-700">↗ 18.2%</span></div><p class="mt-2 text-xs text-stone-400">Total trip memberships</p></div></div>
+
+<div class="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+    <!-- Registered users -->
+    <div class="panel p-5">
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-stone-500">Registered users</span>
+            <span class="grid h-9 w-9 place-items-center rounded-xl bg-sage-50 text-sage-700">♙</span>
+        </div>
+        <div class="mt-4">
+            <b id="kUsers" class="text-3xl">—</b>
+        </div>
+        <p class="mt-2 text-xs text-stone-400">Total registered accounts</p>
+    </div>
+
+    <!-- Active trips -->
+    <div class="panel p-5">
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-stone-500">Active trips this month</span>
+            <span class="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-700">⌁</span>
+        </div>
+        <div class="mt-4">
+            <b id="kTrips" class="text-3xl">—</b>
+        </div>
+        <p class="mt-2 text-xs text-stone-400">Trips scheduled for this month</p>
+    </div>
+
+    <!-- Mountains -->
+    <div class="panel p-5">
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-stone-500">Mountains / trails</span>
+            <span class="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-700">△</span>
+        </div>
+        <div class="mt-4">
+            <b id="kMountains" class="text-3xl">—</b>
+        </div>
+        <p class="mt-2 text-xs text-stone-400">Active registered mountains</p>
+    </div>
+
+    <!-- Member joins -->
+    <div class="panel p-5">
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-stone-500">Member joins</span>
+            <span class="grid h-9 w-9 place-items-center rounded-xl bg-rose-50 text-rose-700">♡</span>
+        </div>
+        <div class="mt-4">
+            <b id="kJoins" class="text-3xl">—</b>
+        </div>
+        <p class="mt-2 text-xs text-stone-400">Total active trip memberships</p>
+    </div>
+
+</div>
 
 <div class="mt-5 grid gap-5 xl:grid-cols-[1.45fr_1fr]"><div class="panel p-5 md:p-6"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-bold">User growth over time</h3><p class="mt-1 text-xs text-stone-400">New registrations by month</p></div><select id="growthRange" class="rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs" onchange="updateGrowth()"><option value="6">Last 6 months</option><option value="12">Last 12 months</option></select></div><div class="mt-5 h-[260px]"><canvas id="growthChart"></canvas></div></div><div class="panel p-5 md:p-6"><div><h3 class="font-bold">Most popular mountains</h3><p class="mt-1 text-xs text-stone-400">Trips created by destination</p></div><div class="mt-5 h-[260px]"><canvas id="mountainChart"></canvas></div></div></div>
 
@@ -734,8 +784,6 @@ function adminHeaders() {
 
 }
 
-
-
 async function loadMembers() {
 
   const table = document.getElementById('membersTable');
@@ -829,70 +877,55 @@ async function loadMembers() {
 }
 
 
+let overviewData = null;
+// --------------------------------------------------
+// LOAD ADMIN OVERVIEW FROM MYSQL
+// --------------------------------------------------
 
+async function loadAdminOverview() {
+    try {
+        const response = await fetch(`${API_BASE}/admin/overview`, {
+            method: 'GET',
+            headers: adminHeaders()
+        });
 
+        const data = await response.json().catch(() => ({}));
 
-/* ===== DASHBOARD LOGIC ===== */
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message || 'Could not load dashboard statistics.'
+            );
+        }
 
-const key = 'hb-admin-state-v1';
+        overviewData = data;
 
+        // Update KPI cards
+        const stats = data.statistics;
 
+        document.getElementById('kUsers').textContent =
+            Number(stats.total_users).toLocaleString();
 
-const seed = {
+        document.getElementById('kTrips').textContent =
+            Number(stats.active_trips_this_month).toLocaleString();
 
-  members: [
+        document.getElementById('kMountains').textContent =
+            Number(stats.total_mountains).toLocaleString();
 
-    {id:1, name:'May Thazin', email:'may.thazin@example.com', role:'Member', status:'Active', joined:'Oct 14, 2026'},
+        document.getElementById('kJoins').textContent =
+            Number(stats.total_joins).toLocaleString();
 
-    {id:2, name:'Ko Aung Min', email:'aungmin@example.com', role:'Organizer', status:'Active', joined:'Oct 12, 2026'},
+        // Update charts
+        updateGrowth();
+        updatePopularMountains();
 
-    {id:3, name:'Thiri Win', email:'thiri.win@example.com', role:'Member', status:'Active', joined:'Oct 10, 2026'},
+    } catch (error) {
+        console.error('Admin overview loading error:', error);
 
-    {id:4, name:'Htet Naing', email:'htet.naing@example.com', role:'Organizer', status:'Banned', joined:'Oct 08, 2026'},
-
-    {id:5, name:'Ei Mon', email:'eimon@example.com', role:'Member', status:'Active', joined:'Oct 06, 2026'},
-
-    {id:6, name:'Kyaw Zin', email:'kyaw.zin@example.com', role:'Member', status:'Active', joined:'Oct 03, 2026'}
-
-  ],
-
-  trips: [
-
-    {id:1, title:'Sunrise hike at Mount Popa', mountain:'Mount Popa', organizer:'Ko Aung Min', date:'2026-10-20', members:12, status:'Upcoming', flagged:false},
-
-    {id:2, title:'Weekend adventure at Shan Hills', mountain:'Shan Hills', organizer:'May Thazin', date:'2026-10-24', members:8, status:'Upcoming', flagged:true},
-
-    {id:3, title:'Green escape at Pyin Oo Lwin', mountain:'Pyin Oo Lwin', organizer:'Thiri Win', date:'2026-10-05', members:15, status:'Past', flagged:false},
-
-    {id:4, title:'Hidden trail exploration', mountain:'Mount Zwegabin', organizer:'Htet Naing', date:'2026-10-28', members:4, status:'Upcoming', flagged:true},
-
-    {id:5, title:'Easy morning walk', mountain:'Popa foothills', organizer:'Ei Mon', date:'2026-09-21', members:6, status:'Past', flagged:false}
-
-  ],
-
-  reports: [
-
-    {id:1, type:'Unsafe route information', target:'Hidden trail exploration', by:'A hiker', date:'Today · 09:42', detail:'The route notes may direct new hikers into a steep, unmarked section.', status:'Pending'},
-
-    {id:2, type:'Spam / misleading content', target:'Shan Hills weekend trip', by:'Community member', date:'Today · 08:15', detail:'The post contains repeated promotional links that do not relate to the trip.', status:'Pending'},
-
-    {id:3, type:'Inappropriate behaviour', target:'Member profile · Htet Naing', by:'Two hikers', date:'Yesterday · 16:20', detail:'Multiple members reported unwanted messages and disrespectful comments.', status:'Pending'}
-
-  ],
-
-  announcements: [],
-
-  activity: [
-
-    {text:'Admin dashboard opened', time:'Just now'},
-
-    {text:'3 community flags are waiting for review', time:'Today · 09:00'}
-
-  ]
-
-};
-
-
+        ['kUsers', 'kTrips', 'kMountains', 'kJoins'].forEach(id => {
+            document.getElementById(id).textContent = '—';
+        });
+    }
+}
 
 let state;
 
@@ -1015,6 +1048,7 @@ function initDashboard() {
   window.adminNotificationTimer = setInterval(loadAdminNotifications, 15000);
 
   drawCharts();
+  loadAdminOverview();
 
   const params = new URLSearchParams(window.location.search);
   const requestedPage = params.get('page');
@@ -1034,8 +1068,6 @@ function initDashboard() {
   }
 
 }
-
-
 
 function persist() {
 
@@ -2126,167 +2158,144 @@ function renderRecent() {
 
 }
 
-
-
-
-
 function renderAll() {
-
-  renderMembers();
-
-  renderTrips();
-
-  renderReports();
-
-  renderSettings();
-
-  renderRecent();
-
-  document.getElementById('kUsers').textContent = state.members.length.toLocaleString();
-
-  document.getElementById('kTrips').textContent = state.trips.filter(t => t.date.startsWith('2026-10')).length;
-
-  document.getElementById('kJoins').textContent = state.trips.reduce((n, t) => n + t.members, 0).toLocaleString();
-
+    renderMembers();
+    renderTrips();
+    renderReports();
+    renderSettings();
+    renderRecent();
 }
-
 
 
 let growthChart, mountainChart;
 
-
-
 function drawCharts() {
+    const base = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: {
+                grid: { display: false },
+                ticks: {
+                    color: '#8b9085',
+                    font: { size: 11 }
+                }
+            },
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f0f1ed' },
+                ticks: {
+                    color: '#8b9085',
+                    font: { size: 11 }
+                }
+            }
+        }
+    };
 
-  const base = {
+    growthChart = new Chart(document.getElementById('growthChart'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                borderColor: '#707d57',
+                backgroundColor: 'rgba(135,147,108,.14)',
+                fill: true,
+                tension: .38,
+                borderWidth: 2.5,
+                pointRadius: 3,
+                pointBackgroundColor: '#707d57'
+            }]
+        },
+        options: {
+            ...base,
+            scales: {
+                ...base.scales,
+                y: {
+                    ...base.scales.y,
+                    ticks: {
+                        ...base.scales.y.ticks,
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
 
-    responsive: true,
+    mountainChart = new Chart(document.getElementById('mountainChart'), {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                backgroundColor: [
+                    '#596547',
+                    '#788665',
+                    '#9eaa8b',
+                    '#c3cbb7',
+                    '#dce1d5',
+                    '#e8ecdf'
+                ],
+                borderRadius: 6,
+                barThickness: 22
+            }]
+        },
+        options: {
+            ...base,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    ...base.scales.x,
+                    grid: { color: '#f0f1ed' },
+                    beginAtZero: true
+                },
+                y: {
+                    ...base.scales.y,
+                    grid: { display: false }
+                }
+            }
+        }
+    });
 
-    maintainAspectRatio: false,
-
-    plugins: {legend: {display: false}},
-
-    scales: {
-
-      x: {grid: {display: false}, ticks: {color: '#8b9085', font: {size: 11}}},
-
-      y: {beginAtZero: true, grid: {color: '#f0f1ed'}, ticks: {color: '#8b9085', font: {size: 11}}}
-
-    }
-
-  };
-
-
-
-  growthChart = new Chart(document.getElementById('growthChart'), {
-
-    type: 'line',
-
-    data: {
-
-      labels: ['May','Jun','Jul','Aug','Sep','Oct'],
-
-      datasets: [{
-
-        data: [84,102,128,116,154,181],
-
-        borderColor: '#707d57',
-
-        backgroundColor: 'rgba(135,147,108,.14)',
-
-        fill: true,
-
-        tension: .38,
-
-        borderWidth: 2.5,
-
-        pointRadius: 3,
-
-        pointBackgroundColor: '#707d57'
-
-      }]
-
-    },
-
-    options: {
-
-      ...base,
-
-      scales: {
-
-        ...base.scales,
-
-        y: {...base.scales.y, ticks: {...base.scales.y.ticks, stepSize: 50}}
-
-      }
-
-    }
-
-  });
-
-
-
-  mountainChart = new Chart(document.getElementById('mountainChart'), {
-
-    type: 'bar',
-
-    data: {
-
-      labels: ['Mount Popa','Shan Hills','Zwegabin','Pyin Oo Lwin','Victoria'],
-
-      datasets: [{
-
-        data: [28,22,17,12,8],
-
-        backgroundColor: ['#596547','#788665','#9eaa8b','#c3cbb7','#dce1d5'],
-
-        borderRadius: 6,
-
-        barThickness: 22
-
-      }]
-
-    },
-
-    options: {
-
-      ...base,
-
-      indexAxis: 'y',
-
-      scales: {
-
-        x: {...base.scales.x, grid: {color: '#f0f1ed'}},
-
-        y: {...base.scales.y, grid: {display: false}}
-
-      }
-
-    }
-
-  });
-
+    // Populate charts if API data has already loaded
+    updateGrowth();
+    updatePopularMountains();
 }
-
-
 
 function updateGrowth() {
+    if (!growthChart || !overviewData) return;
 
-  const n = Number(document.getElementById('growthRange').value);
+    const selectedRange = Number(
+        document.getElementById('growthRange')?.value || 6
+    );
 
-  const labels = ['Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'];
+    const labels = overviewData.user_growth?.labels || [];
+    const values = overviewData.user_growth?.data || [];
 
-  const values = [58,72,81,76,95,88,84,102,128,116,154,181];
+    growthChart.data.labels = labels.slice(-selectedRange);
+    growthChart.data.datasets[0].data = values.slice(-selectedRange);
 
-  growthChart.data.labels = labels.slice(-n);
-
-  growthChart.data.datasets[0].data = values.slice(-n);
-
-  growthChart.update();
-
+    growthChart.update();
 }
 
+function updatePopularMountains() {
+    if (!mountainChart || !overviewData) return;
 
+    const mountains = overviewData.popular_mountains || [];
+
+    mountainChart.data.labels = mountains.map(
+        item => item.mountain_name
+    );
+
+    mountainChart.data.datasets[0].data = mountains.map(
+        item => Number(item.trips_count)
+    );
+
+    mountainChart.update();
+}
 
 function exportData() {
 
