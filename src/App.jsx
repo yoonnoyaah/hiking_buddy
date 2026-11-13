@@ -876,39 +876,65 @@ function CookiePage() {
 
 function ReportButton({ type = 'post', id, title, authorEmail, currentUserEmail }) {
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
 
   if (authorEmail && currentUserEmail && authorEmail === currentUserEmail) {
     return null;
   }
 
-  const report = () => {
+  const report = async () => {
+    if (sending || sent) return;
     const reason = window.prompt(`Why are you reporting this ${type}?`);
-
     if (!reason?.trim()) return;
 
-    const reports = stored('hb-reports', []);
+    const token = getAuthToken();
+    if (!token) {
+      window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+      return;
+    }
 
-    reports.unshift({
-      id: Date.now(),
-      type,
-      contentId: id,
-      title,
-      reason: reason.trim(),
-      status: 'Pending',
-      createdAt: new Date().toISOString()
-    });
+    // The reports page separates community-post reports from group-trip reports.
+    const reportType = type.toLowerCase().includes('community')
+      ? 'community_post'
+      : 'group_trip';
 
-    save('hb-reports', reports);
-    setSent(true);
+    setSending(true);
+    try {
+      const response = await fetch(`${API_BASE}/reports`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          type: reportType,
+          target_id: Number(id),
+          reason: reason.trim()
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const validation = data.errors ? Object.values(data.errors).flat().join(' ') : '';
+        throw new Error(validation || data.message || 'Unable to submit this report.');
+      }
+      setSent(true);
+      window.alert('Your report has been sent to the administrator.');
+    } catch (error) {
+      window.alert(error.message || 'Unable to submit this report.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
     <button
       type="button"
       onClick={report}
-      className="btn-secondary !px-3 !py-2 text-xs"
+      disabled={sending || sent}
+      className="btn-secondary !px-3 !py-2 text-xs disabled:opacity-60"
     >
-      {sent ? 'Reported ✓' : 'Report'}
+      {sending ? 'Sending…' : sent ? 'Reported ✓' : 'Report'}
     </button>
   );
 }
@@ -1777,9 +1803,7 @@ function TrailCard({ trail }) {
           {trail.description}
         </p>
 
-        <div className="mt-3">
-          <ReportButton type="trail listing" id={trail.id} title={trail.name} />
-        </div>
+
       </div>
     </Link>
   );
@@ -2585,6 +2609,8 @@ function PostTrip({ user, trips, setTrips, mountains = [], onCancel }) {
   ].join('-');
 
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const addMountainOption = '＋ Add a new mountain / trail';
@@ -2745,8 +2771,48 @@ function PostTrip({ user, trips, setTrips, mountains = [], onCancel }) {
 
     setSubmitting(true);
     setError('');
+    setSuccess('');
 
     try {
+      // Save new place suggestions in MySQL so admins can review them.
+      // If both the region and mountain are new, submit both requests.
+      const submitLocationRequest = async (requestPayload) => {
+        const requestResponse = await fetch(`${API_BASE}/location-requests`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(requestPayload)
+        });
+        const requestData = await requestResponse.json().catch(() => ({}));
+        if (!requestResponse.ok) {
+          const validation = requestData.errors
+            ? Object.values(requestData.errors).flat().join(' ')
+            : '';
+          throw new Error(validation || requestData.message || 'Unable to submit the new location for approval.');
+        }
+      };
+
+      if (isCustomRegion) {
+        await submitLocationRequest({
+          type: 'region',
+          name: finalRegion,
+          description: `Region suggested while creating the trip: ${form.title.trim()}`
+        });
+      }
+
+      if (isCustomMountain) {
+        await submitLocationRequest({
+          type: 'mountain',
+          name: finalMountain,
+          region: finalRegion,
+          difficulty: form.difficulty,
+          description: form.description.trim()
+        });
+      }
+
       const response = await fetch(`${API_BASE}/group-trips`, {
         method: 'POST',
         headers: {
@@ -2773,7 +2839,17 @@ function PostTrip({ user, trips, setTrips, mountains = [], onCancel }) {
 
       const savedTrip = data.trip;
 
-      // Convert Laravel response into the format used by TripCard
+      // A trip linked to a new, unapproved location must not appear
+      // in the public trip list until the administrator approves it.
+      if (savedTrip.status === 'pending') {
+        setSubmitted(true);
+        setSuccess(
+          'Your trip has been saved and sent for approval. It will appear in Upcoming Group Trips after the new mountain or region is approved.'
+        );
+        return;
+      }
+
+      // Convert an immediately publishable trip into the TripCard format.
       const newTrip = mapApiTrip({
         ...savedTrip,
         organizer: savedTrip.organizer || {
@@ -2785,36 +2861,13 @@ function PostTrip({ user, trips, setTrips, mountains = [], onCancel }) {
         is_joined: false
       });
 
-      // Update the current React page
       setTrips(current => [newTrip, ...current]);
 
-      // Keep temporary local cache in sync with the current page
-      // Laravel remains the main database.
       if (typeof save === 'function') {
         save('hb-trips', [newTrip, ...(trips || [])]);
       }
 
-      // Keep the existing custom-place suggestion feature temporarily.
-      // The permanent database suggestion system will be added separately.
-      if (isCustomMountain || isCustomRegion) {
-        const suggestions = stored('hb-place-suggestions', []);
-
-        suggestions.unshift({
-          id: Date.now(),
-          name: finalMountain,
-          region: finalRegion,
-          difficulty: form.difficulty,
-          description: form.description,
-          submittedBy: user.name,
-          email: user.email,
-          status: 'Pending'
-        });
-
-        save('hb-place-suggestions', suggestions);
-      }
-
       if (onCancel) onCancel();
-
       nav('/trails');
 
     } catch (err) {
@@ -3030,6 +3083,15 @@ function PostTrip({ user, trips, setTrips, mountains = [], onCancel }) {
           </label>
         </div>
 
+        {success && (
+          <p
+            role="status"
+            className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800"
+          >
+            {success}
+          </p>
+        )}
+
         {error && (
           <p
             role="alert"
@@ -3059,10 +3121,10 @@ function PostTrip({ user, trips, setTrips, mountains = [], onCancel }) {
             <button
               className="btn-primary"
               type="submit"
-              disabled={submitting}
+              disabled={submitting || submitted}
             >
-              {submitting ? 'Publishing...' : 'Publish trip'}
-              {!submitting && <ArrowRight size={16} />}
+              {submitting ? 'Submitting...' : submitted ? 'Submitted for approval' : 'Publish trip'}
+              {!submitting && !submitted && <ArrowRight size={16} />}
             </button>
           </div>
         </div>

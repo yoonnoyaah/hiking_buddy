@@ -5,15 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\GroupTrip;
 use App\Models\TripMember;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use App\Notifications\HikingBuddyNotification;
+use App\Models\LocationRequest;
 use App\Models\User;
+use App\Notifications\HikingBuddyNotification;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class GroupTripController extends Controller
 {
-    // Get all active group trips
+    // --------------------------------------------------
+    // GET ALL ACTIVE GROUP TRIPS
+    // --------------------------------------------------
+
     public function index()
     {
         $currentUser = Auth::guard('sanctum')->user();
@@ -40,22 +44,40 @@ class GroupTripController extends Controller
         ]);
     }
 
-    // Get one trip
-    public function show($id)
+
+    // --------------------------------------------------
+    // GET ONE GROUP TRIP
+    // --------------------------------------------------
+
+    public function show(Request $request, $id)
     {
         $trip = GroupTrip::with([
             'organizer:id,name',
             'members.user:id,name'
         ])
-        ->withCount([
-            'members as joined_count' => function ($query) {
-                $query->where('status', 'joined');
-            }
-        ])
-        ->find($id);
+            ->withCount([
+                'members as joined_count' => function ($query) {
+                    $query->where('status', 'joined');
+                }
+            ])
+            ->find($id);
 
         if (!$trip) {
             return response()->json([
+                'success' => false,
+                'message' => 'Trip not found.'
+            ], 404);
+        }
+
+        $user = $request->user();
+
+        $isOwner = $user && $trip->organizer_id == $user->id;
+        $isAdmin = $user && strtolower((string) $user->role) === 'admin';
+
+        // Hide unpublished trips from other members.
+        if ($trip->status !== 'active' && !$isOwner && !$isAdmin) {
+            return response()->json([
+                'success' => false,
                 'message' => 'Trip not found.'
             ], 404);
         }
@@ -66,7 +88,11 @@ class GroupTripController extends Controller
         ]);
     }
 
-    // Create a group trip
+
+    // --------------------------------------------------
+    // CREATE A GROUP TRIP
+    // --------------------------------------------------
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -88,31 +114,90 @@ class GroupTripController extends Controller
             'description' => 'nullable|string|max:3000',
         ]);
 
+        $mountainName = trim($validated['mountain_name']);
+        $regionName = trim($validated['region']);
+
+        /*
+         * Find location requests related to this trip.
+         * A trip must wait if its mountain or region
+         * request is still pending.
+         */
+
+        $locationRequests = LocationRequest::where(function ($query) use (
+            $mountainName,
+            $regionName
+        ) {
+            $query->where(function ($q) use ($mountainName, $regionName) {
+                $q->where('type', 'mountain')
+                    ->whereRaw('LOWER(name) = ?', [mb_strtolower($mountainName)])
+                    ->whereRaw('LOWER(region) = ?', [mb_strtolower($regionName)]);
+            })
+            ->orWhere(function ($q) use ($regionName) {
+                $q->where('type', 'region')
+                    ->whereRaw('LOWER(name) = ?', [mb_strtolower($regionName)]);
+            });
+        })->get();
+
+        // Rejected location requests prevent publication.
+        if ($locationRequests->contains('status', 'rejected')) {
+            $tripStatus = 'rejected';
+        }
+        // Pending location requests keep the trip unpublished.
+        elseif ($locationRequests->contains('status', 'pending')) {
+            $tripStatus = 'pending';
+        }
+        // No pending or rejected request: publish normally.
+        else {
+            $tripStatus = 'active';
+        }
+
         $trip = GroupTrip::create([
             ...$validated,
             'organizer_id' => $request->user()->id,
-            'status' => 'active',
+            'status' => $tripStatus,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Group trip created successfully.',
+            'message' => $tripStatus === 'pending'
+                ? 'Your trip has been submitted and is waiting for location approval.'
+                : ($tripStatus === 'rejected'
+                    ? 'Your trip cannot be published because a required location was rejected.'
+                    : 'Group trip created successfully.'),
             'trip' => $trip->load('organizer:id,name')
         ], 201);
     }
 
-    // Join a trip
+
+    // --------------------------------------------------
+    // JOIN A GROUP TRIP
+    // --------------------------------------------------
+
     public function join(Request $request, $id)
     {
         return DB::transaction(function () use ($request, $id) {
-            $trip = GroupTrip::where('status', 'active')
-                ->lockForUpdate()
-                ->find($id);
+
+            $trip = GroupTrip::lockForUpdate()->find($id);
 
             if (!$trip) {
                 return response()->json([
-                    'message' => 'Trip not found or unavailable.'
+                    'success' => false,
+                    'message' => 'Trip not found.'
                 ], 404);
+            }
+
+            if ($trip->trip_date->toDateString() < today()->toDateString()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This trip has expired and can no longer be joined.'
+                ], 422);
+            }
+
+            if ($trip->status !== 'active') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This trip is not available for joining yet.'
+                ], 422);
             }
 
             $alreadyJoined = TripMember::where('trip_id', $trip->id)
@@ -122,6 +207,7 @@ class GroupTripController extends Controller
 
             if ($alreadyJoined) {
                 return response()->json([
+                    'success' => false,
                     'message' => 'You have already joined this trip.'
                 ], 422);
             }
@@ -132,6 +218,7 @@ class GroupTripController extends Controller
 
             if ($joinedCount >= $trip->spots) {
                 return response()->json([
+                    'success' => false,
                     'message' => 'Sorry, this trip is already full.'
                 ], 422);
             }
@@ -147,7 +234,6 @@ class GroupTripController extends Controller
                 ]
             );
 
-            // Notify the trip organizer
             $actor = $request->user();
             $organizer = User::find($trip->organizer_id);
 
@@ -171,16 +257,30 @@ class GroupTripController extends Controller
         });
     }
 
-    // Leave a trip
+
+    // --------------------------------------------------
+    // LEAVE A GROUP TRIP
+    // --------------------------------------------------
+
     public function leave(Request $request, $id)
     {
-        $membership = TripMember::where('trip_id', $id)
+        $trip = GroupTrip::find($id);
+
+        if (!$trip) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Trip not found.'
+            ], 404);
+        }
+
+        $membership = TripMember::where('trip_id', $trip->id)
             ->where('user_id', $request->user()->id)
             ->where('status', 'joined')
             ->first();
 
         if (!$membership) {
             return response()->json([
+                'success' => false,
                 'message' => 'You have not joined this trip.'
             ], 404);
         }
@@ -189,7 +289,6 @@ class GroupTripController extends Controller
             'status' => 'left'
         ]);
 
-        // Notify the trip organizer
         $actor = $request->user();
         $organizer = User::find($trip->organizer_id);
 
@@ -212,13 +311,19 @@ class GroupTripController extends Controller
         ]);
     }
 
-    // Delete a trip (organizer or admin only)
+
+    // --------------------------------------------------
+    // DELETE A GROUP TRIP
+    // ORGANIZER OR ADMIN ONLY
+    // --------------------------------------------------
+
     public function destroy(Request $request, $id)
     {
         $trip = GroupTrip::find($id);
 
         if (!$trip) {
             return response()->json([
+                'success' => false,
                 'message' => 'Trip not found.'
             ], 404);
         }
@@ -227,43 +332,154 @@ class GroupTripController extends Controller
 
         if (
             $trip->organizer_id !== $user->id &&
-            $user->role !== 'admin'
+            strtolower((string) $user->role) !== 'admin'
         ) {
             return response()->json([
+                'success' => false,
                 'message' => 'You are not allowed to delete this trip.'
             ], 403);
         }
 
-        // Notify all joined members before deleting the trip
-        $memberIds = TripMember::where('group_trip_id', $trip->id)
-            ->where('status', 'joined')
-            ->pluck('user_id')
-            ->unique();
+        DB::transaction(function () use ($trip, $user) {
 
-        $organizer = $request->user();
+            $memberIds = TripMember::where('trip_id', $trip->id)
+                ->where('status', 'joined')
+                ->pluck('user_id')
+                ->unique();
 
-        $members = User::whereIn('id', $memberIds)
-            ->where('id', '!=', $organizer->id)
-            ->get();
+            $members = User::whereIn('id', $memberIds)
+                ->where('id', '!=', $user->id)
+                ->get();
 
-        foreach ($members as $member) {
-            $member->notify(new HikingBuddyNotification([
-                'category' => 'trails',
-                'title' => 'Trip cancelled',
-                'message' => 'The trip "' . $trip->title . '" has been cancelled.',
-                'url' => '/trails',
-                'actor_id' => $organizer->id,
-                'actor_name' => $organizer->name,
-                'related_id' => $trip->id,
-                'related_type' => 'group_trip',
-            ]));
-}
+            foreach ($members as $member) {
+                $member->notify(new HikingBuddyNotification([
+                    'category' => 'trails',
+                    'title' => 'Trip cancelled',
+                    'message' => 'The trip "' . $trip->title . '" has been cancelled.',
+                    'url' => '/trails',
+                    'actor_id' => $user->id,
+                    'actor_name' => $user->name,
+                    'related_id' => $trip->id,
+                    'related_type' => 'group_trip',
+                ]));
+            }
 
-        $trip->delete();
+            TripMember::where('trip_id', $trip->id)->delete();
+
+            $trip->delete();
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Trip deleted successfully.'
+        ]);
+    }
+
+
+    // --------------------------------------------------
+    // ADMIN: GET ALL GROUP TRIPS
+    // --------------------------------------------------
+
+    public function adminIndex(Request $request)
+    {
+        if (!$request->user() || strtolower((string) $request->user()->role) !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied.'
+            ], 403);
+        }
+
+        $trips = GroupTrip::with('organizer:id,name,email')
+            ->withCount([
+                'members as joined_count' => function ($query) {
+                    $query->where('status', 'joined');
+                }
+            ])
+            ->latest()
+            ->get();
+
+        $trips->transform(function ($trip) {
+
+            if ($trip->status === 'cancelled') {
+                $effectiveStatus = 'Cancelled';
+            } elseif ($trip->status === 'pending') {
+                $effectiveStatus = 'Pending approval';
+            } elseif ($trip->status === 'rejected') {
+                $effectiveStatus = 'Rejected';
+            } elseif ($trip->trip_date->toDateString() < today()->toDateString()) {
+                $effectiveStatus = 'Expired';
+            } elseif ($trip->status === 'active') {
+                $effectiveStatus = 'Active';
+            } else {
+                $effectiveStatus = ucfirst($trip->status);
+            }
+
+            $trip->effective_status = $effectiveStatus;
+
+            return $trip;
+        });
+
+        return response()->json([
+            'success' => true,
+            'trips' => $trips
+        ]);
+    }
+
+
+    // --------------------------------------------------
+    // ADMIN: DELETE A GROUP TRIP
+    // --------------------------------------------------
+
+    public function adminDestroy(Request $request, $id)
+    {
+        if (!$request->user() || strtolower((string) $request->user()->role) !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied.'
+            ], 403);
+        }
+
+        $trip = GroupTrip::find($id);
+
+        if (!$trip) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Trip not found.'
+            ], 404);
+        }
+
+        DB::transaction(function () use ($trip, $request) {
+
+            $memberIds = TripMember::where('trip_id', $trip->id)
+                ->where('status', 'joined')
+                ->pluck('user_id')
+                ->unique();
+
+            $members = User::whereIn('id', $memberIds)
+                ->where('id', '!=', $request->user()->id)
+                ->get();
+
+            foreach ($members as $member) {
+                $member->notify(new HikingBuddyNotification([
+                    'category' => 'trails',
+                    'title' => 'Trip cancelled',
+                    'message' => 'The trip "' . $trip->title . '" has been cancelled by an administrator.',
+                    'url' => '/trails',
+                    'actor_id' => $request->user()->id,
+                    'actor_name' => $request->user()->name,
+                    'related_id' => $trip->id,
+                    'related_type' => 'group_trip',
+                ]));
+            }
+
+            TripMember::where('trip_id', $trip->id)->delete();
+
+            $trip->delete();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Trip removed successfully.'
         ]);
     }
 }

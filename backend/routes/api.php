@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\AdminMemberController;
+use App\Http\Controllers\Api\LocationRequestController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\AdminNotificationController;
+use App\Http\Controllers\Api\AdminOverviewController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -76,6 +80,12 @@ Route::post('/reset-password', function (Request $request) {
 
 Route::get('/mountains', [MountainController::class, 'index']);
 Route::get('/mountains/{id}', [MountainController::class, 'show']);
+Route::get('/regions', [LocationRequestController::class, 'regions']);
+
+Route::get('/admin/overview', [
+    AdminOverviewController::class,
+    'index'
+]);
 
 // Protected routes
 Route::middleware('auth:sanctum', 'active.account')->group(function () {
@@ -89,12 +99,66 @@ Route::middleware('auth:sanctum', 'active.account')->group(function () {
     Route::patch('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
     Route::get('/admin/members', [AdminMemberController::class, 'index']);
+    // Trip moderation
+    Route::get('/admin/group-trips', [GroupTripController::class, 'adminIndex']);
+    Route::delete('/admin/group-trips/{id}', [GroupTripController::class, 'adminDestroy']);
 
     Route::get('/admin/members/{id}/warnings', [AdminMemberController::class, 'warnings']);
 
     Route::post('/admin/members/{id}/warnings', [AdminMemberController::class, 'warn']);
 
     Route::patch('/admin/members/{id}/status', [AdminMemberController::class, 'updateStatus']);
+
+        // Member location requests
+    Route::post('/location-requests', [
+        LocationRequestController::class,
+        'store'
+    ]);
+
+    // Member reports
+    Route::post('/reports', [
+        ReportController::class,
+        'store'
+    ]);
+
+    // Admin location approvals
+    Route::get('/admin/location-requests', [
+        LocationRequestController::class,
+        'adminIndex'
+    ]);
+
+    Route::patch('/admin/location-requests/{id}', [
+        LocationRequestController::class,
+        'review'
+    ]);
+
+    // Admin reports
+    Route::get('/admin/reports', [
+        ReportController::class,
+        'adminIndex'
+    ]);
+
+    Route::patch('/admin/reports/{id}', [
+        ReportController::class,
+        'review'
+    ]);
+
+    // Admin notifications (separate from member notifications)
+    Route::get('/admin/notifications', [
+        AdminNotificationController::class,
+        'index'
+    ]);
+
+    Route::patch('/admin/notifications/{id}/read', [
+        AdminNotificationController::class,
+        'markAsRead'
+    ]);
+
+    Route::patch('/admin/notifications/read-all', [
+        AdminNotificationController::class,
+        'markAllAsRead'
+    ]);
+
 });
 
 // Public group trip routes
