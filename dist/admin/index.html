@@ -1,0 +1,2429 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8"/>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>Hiking Buddy · Admin</title>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+  body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;background:#f7f8f5;color:#292d25}
+
+  .navitem{display:flex;align-items:center;gap:.8rem;padding:.75rem .9rem;border-radius:12px;color:#73786d;font-size:.9rem;font-weight:500;transition:.2s}
+
+  .navitem:hover,.navitem.active{background:#e8ecdf;color:#596547}
+
+  .btn{border-radius:10px;padding:.6rem .85rem;font-size:.82rem;font-weight:600;transition:.2s}
+
+  .btn:hover{transform:translateY(-1px)}
+
+  .btn-green{background:#596547;color:white}
+
+  .btn-soft{background:#eef1e8;color:#596547}
+
+  .btn-red{background:#fff0ee;color:#b44c42}
+
+  .pill{border-radius:99px;padding:.28rem .6rem;font-size:.72rem;font-weight:600}
+
+  .table-wrap{overflow-x:auto}
+
+  th{font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:#85897f;font-weight:600;text-align:left;padding:1rem .9rem;white-space:nowrap}
+
+  td{padding:1rem .9rem;border-top:1px solid #f0f1ed;font-size:.84rem;white-space:nowrap}
+
+  .panel{background:white;border:1px solid #e9ebe5;border-radius:18px;box-shadow:0 8px 28px rgba(41,45,37,.035)}
+
+  .page{display:none}
+
+  .page.active{display:block}
+
+  .side{width:250px}
+
+  .overlay{display:none}
+
+
+
+  /* Login screen */
+
+  .login-screen {
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 100;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background: #f7f8f5;
+
+    transition: opacity 0.3s, visibility 0.3s;
+
+  }
+
+  .login-screen.hidden {
+
+    opacity: 0;
+
+    visibility: hidden;
+
+    pointer-events: none;
+
+  }
+
+  .login-card {
+
+    background: white;
+
+    border: 1px solid #e9ebe5;
+
+    border-radius: 24px;
+
+    box-shadow: 0 20px 60px rgba(41,45,37,.1);
+
+    padding: 2.5rem;
+
+    width: 100%;
+
+    max-width: 420px;
+
+    margin: 1rem;
+
+  }
+
+  .login-card .logo-icon {
+
+    width: 48px;
+
+    height: 48px;
+
+    border-radius: 14px;
+
+    background: #596547;
+
+    color: white;
+
+    display: grid;
+
+    place-items: center;
+
+    font-size: 1.5rem;
+
+  }
+
+  .login-card input {
+
+    width: 100%;
+
+    border: 1px solid #e1e4dc;
+
+    border-radius: 12px;
+
+    padding: 0.8rem 1rem;
+
+    font-size: 0.9rem;
+
+    background: white;
+
+    color: #292d25;
+
+    transition: border-color 0.2s;
+
+  }
+
+  .login-card input:focus {
+
+    outline: 2px solid #d4ddc7;
+
+    border-color: #87936c;
+
+  }
+
+  .login-card .btn-login {
+
+    width: 100%;
+
+    background: #596547;
+
+    color: white;
+
+    border: none;
+
+    border-radius: 12px;
+
+    padding: 0.8rem;
+
+    font-size: 0.9rem;
+
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: background 0.2s, transform 0.2s;
+
+  }
+
+  .login-card .btn-login:hover {
+
+    background: #4a563c;
+
+    transform: translateY(-1px);
+
+  }
+
+  .login-error {
+
+    background: #fff0ee;
+
+    color: #b44c42;
+
+    border-radius: 10px;
+
+    padding: 0.7rem 1rem;
+
+    font-size: 0.8rem;
+
+    font-weight: 500;
+
+    display: none;
+
+  }
+
+  .login-error.show {
+
+    display: block;
+
+  }
+
+
+
+  /* Hide dashboard initially */
+
+  #dashboard {
+
+    opacity: 1;
+
+    transition: opacity 0.3s;
+
+  }
+
+  #dashboard.dimmed {
+
+    opacity: 0.3;
+
+    pointer-events: none;
+
+  }
+
+</style>
+
+
+  <link rel="stylesheet" crossorigin href="/assets/admin-Bs8fWxH4.css">
+</head>
+
+<body>
+
+
+
+<!-- ========== LOGIN SCREEN ========== -->
+
+<div id="loginScreen" class="login-screen">
+
+  <div class="login-card">
+
+    <div class="flex items-center gap-3 mb-6">
+
+      <div class="logo-icon">⌁</div>
+
+      <div>
+
+        <h1 class="text-xl font-bold tracking-tight">hiking<span class="text-sage-600">buddy</span></h1>
+
+        <p class="text-xs text-stone-400 font-medium tracking-[.12em]">ADMIN CONSOLE</p>
+
+      </div>
+
+    </div>
+
+
+
+    <h2 class="text-lg font-bold mb-1">Welcome back</h2>
+
+    <p class="text-sm text-stone-500 mb-6">Sign in to manage the hiking community.</p>
+
+
+
+    <div id="loginError" class="login-error mb-4">
+
+      ⚠️ Invalid email or password.
+
+    </div>
+
+
+
+    <form id="loginForm" class="space-y-4">
+
+      <label class="block text-sm font-medium">
+
+        Email address
+
+        <input id="loginEmail" type="email" required
+
+       placeholder="Enter admin email" class="mt-1.5"/>
+
+      </label>
+
+      <label class="block text-sm font-medium">
+
+        Password
+
+        <input id="loginPassword" type="password" required
+
+       placeholder="Enter password" class="mt-1.5"/>
+
+      </label>
+
+      <div class="flex items-center justify-between text-xs text-stone-500">
+
+        <label class="flex items-center gap-2 cursor-pointer">
+
+          <input type="checkbox" checked class="w-3.5 h-3.5 accent-sage-700"/> Remember me
+
+        </label>
+
+        <span class="text-sage-600 font-medium cursor-pointer hover:underline">Forgot password?</span>
+
+      </div>
+
+      <button type="submit" class="btn-login">Sign in to dashboard →</button>
+
+    </form>
+
+
+
+    <p class="mt-6 text-center text-xs text-stone-400">
+
+      Secure administrator access · Hiking Buddy
+
+    </p>
+
+  </div>
+
+</div>
+
+
+<!-- ========== DASHBOARD ========== -->
+
+<div id="dashboard" class="min-h-screen flex dimmed">
+
+<aside id="sidebar" class="side fixed inset-y-0 left-0 z-30 bg-white border-r border-stone-200/80 p-5 flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-300">
+
+<a href="#overview" class="flex items-center gap-3 px-2 py-3"><span class="grid place-items-center w-10 h-10 rounded-xl bg-sage-700 text-white text-xl">⌁</span><span><b class="text-lg tracking-tight">hiking<span class="text-sage-600">buddy</span></b><small class="block text-xs text-stone-400">ADMIN CONSOLE</small></span></a>
+
+<div class="mt-8 mb-2 px-3 text-[10px] font-bold tracking-[.16em] text-stone-400">WORKSPACE</div>
+
+<nav class="space-y-1"><a class="navitem active" href="#overview" data-page="overview">▦ <span>Overview</span></a><a class="navitem" href="#members" data-page="members">♙ <span>Member management</span></a><a class="navitem" href="#trips" data-page="trips">⌁ <span>Trip moderation</span></a><a class="navitem" href="#location-approvals" data-page="location-approvals">⌖ <span>Location approvals</span><span id="locationCount" class="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800">0</span></a><a class="navitem" href="#reports" data-page="reports">⚑ <span>Reports</span><span id="reportCount" class="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800">0</span></a></nav>
+
+<div class="mt-auto rounded-2xl bg-sage-50 p-4"><div class="flex items-center gap-2"><span class="grid w-9 h-9 place-items-center rounded-full bg-sage-200 text-sage-700 font-bold">AD</span><div><p class="text-sm font-semibold">Community Admin</p><p class="text-xs text-stone-500">Platform moderator</p></div></div><button onclick="signOut()" class="mt-4 w-full text-left text-xs text-stone-500 hover:text-sage-700">↪ Sign out</button></div>
+
+</aside>
+
+<div id="scrim" class="overlay fixed inset-0 z-20 bg-black/30"></div>
+
+<main class="min-w-0 flex-1 lg:ml-[250px]">
+
+<header class="sticky top-0 z-10 flex h-[76px] items-center justify-between border-b border-stone-200/70 bg-white/90 px-5 backdrop-blur md:px-8"><div class="flex items-center gap-3"><button id="menuBtn" class="rounded-lg border border-stone-200 p-2 lg:hidden" aria-label="Open navigation">☰</button><div><p class="text-xs text-stone-400">Hiking Buddy / <span id="crumb">Overview</span></p><h1 id="topTitle" class="text-lg font-bold">Community overview</h1></div></div><div class="flex items-center gap-3"><span class="hidden text-xs text-stone-500 sm:block">Wednesday, 14 October 2026</span><button id="adminBell" class="relative grid h-10 w-10 place-items-center rounded-full bg-sage-50 text-sage-700" onclick="toggleAdminNotifications()" aria-label="Open admin notifications" title="Notifications">♧<span id="adminUnreadBadge" class="absolute -right-1 -top-1 hidden min-w-5 rounded-full bg-red-500 px-1 text-center text-[10px] font-bold text-white ring-2 ring-white">0</span></button><span class="grid h-9 w-9 place-items-center rounded-full bg-[#e7d9c5] text-sm font-bold text-[#6a5740]">AD</span></div></header>
+
+<div id="adminNotificationPanel" class="fixed right-5 top-[86px] z-50 hidden w-[min(92vw,420px)] rounded-2xl border border-stone-200 bg-white p-4 shadow-xl">
+  <div class="flex items-center justify-between gap-3 border-b border-stone-100 pb-3">
+    <div><h3 class="font-bold">Admin notifications</h3><p class="mt-1 text-xs text-stone-500">New location requests and reports</p></div>
+    <button class="text-xs font-semibold text-sage-700" onclick="markAllAdminNotificationsRead()">Mark all read</button>
+  </div>
+  <div id="adminNotificationList" class="mt-3 max-h-[60vh] space-y-2 overflow-y-auto"><p class="py-6 text-center text-sm text-stone-400">Loading notifications…</p></div>
+</div>
+
+<div class="p-5 md:p-8">
+
+<section id="page-overview" class="page active"><div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">COMMUNITY HEALTH</p><h2 class="mt-2 text-2xl font-bold tracking-tight md:text-3xl">Good morning, Admin <span>🌿</span></h2><p class="mt-2 text-sm text-stone-500">A clear view of the people and trips shaping the community.</p></div><button class="btn btn-soft" onclick="exportData()">↓ Export overview</button></div>
+
+
+<div class="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+    <!-- Registered users -->
+    <div class="panel p-5">
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-stone-500">Registered users</span>
+            <span class="grid h-9 w-9 place-items-center rounded-xl bg-sage-50 text-sage-700">♙</span>
+        </div>
+        <div class="mt-4">
+            <b id="kUsers" class="text-3xl">—</b>
+        </div>
+        <p class="mt-2 text-xs text-stone-400">Total registered accounts</p>
+    </div>
+
+    <!-- Active trips -->
+    <div class="panel p-5">
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-stone-500">Active trips this month</span>
+            <span class="grid h-9 w-9 place-items-center rounded-xl bg-amber-50 text-amber-700">⌁</span>
+        </div>
+        <div class="mt-4">
+            <b id="kTrips" class="text-3xl">—</b>
+        </div>
+        <p class="mt-2 text-xs text-stone-400">Trips scheduled for this month</p>
+    </div>
+
+    <!-- Mountains -->
+    <div class="panel p-5">
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-stone-500">Mountains / trails</span>
+            <span class="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-700">△</span>
+        </div>
+        <div class="mt-4">
+            <b id="kMountains" class="text-3xl">—</b>
+        </div>
+        <p class="mt-2 text-xs text-stone-400">Active registered mountains</p>
+    </div>
+
+    <!-- Member joins -->
+    <div class="panel p-5">
+        <div class="flex items-center justify-between">
+            <span class="text-sm text-stone-500">Member joins</span>
+            <span class="grid h-9 w-9 place-items-center rounded-xl bg-rose-50 text-rose-700">♡</span>
+        </div>
+        <div class="mt-4">
+            <b id="kJoins" class="text-3xl">—</b>
+        </div>
+        <p class="mt-2 text-xs text-stone-400">Total active trip memberships</p>
+    </div>
+
+</div>
+
+<div class="mt-5 grid gap-5 xl:grid-cols-[1.45fr_1fr]"><div class="panel p-5 md:p-6"><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-bold">User growth over time</h3><p class="mt-1 text-xs text-stone-400">New registrations by month</p></div><select id="growthRange" class="rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs" onchange="updateGrowth()"><option value="6">Last 6 months</option><option value="12">Last 12 months</option></select></div><div class="mt-5 h-[260px]"><canvas id="growthChart"></canvas></div></div><div class="panel p-5 md:p-6"><div><h3 class="font-bold">Most popular mountains</h3><p class="mt-1 text-xs text-stone-400">Trips created by destination</p></div><div class="mt-5 h-[260px]"><canvas id="mountainChart"></canvas></div></div></div>
+
+<div class="mt-5 grid gap-5 xl:grid-cols-[1.2fr\_.8fr]"><div class="panel"><div class="flex items-center justify-between p-5"><div><h3 class="font-bold">Recent members</h3><p class="mt-1 text-xs text-stone-400">Latest community sign-ups</p></div><button class="btn btn-soft" onclick="go('members')">View all →</button></div><div class="table-wrap"><table class="w-full"><thead><tr><th>Member</th><th>Joined</th><th>Status</th></tr></thead><tbody id="recentMembers"></tbody></table></div></div><div class="panel p-5"><div class="flex items-center justify-between"><div><h3 class="font-bold">Community health</h3><p class="mt-1 text-xs text-stone-400">Moderation snapshot</p></div><span class="pill bg-sage-100 text-sage-700">Live overview</span></div><div class="mt-5 space-y-5"><div><div class="flex justify-between text-sm"><span class="text-stone-500">Active members</span><b>94%</b></div><div class="mt-2 h-2 rounded-full bg-stone-100"><div class="h-2 w-[94%] rounded-full bg-sage-600"></div></div></div><div><div class="flex justify-between text-sm"><span class="text-stone-500">Trips with no flags</span><b>97%</b></div><div class="mt-2 h-2 rounded-full bg-stone-100"><div class="h-2 w-[97%] rounded-full bg-sage-600"></div></div></div><div><div class="flex justify-between text-sm"><span class="text-stone-500">Reports awaiting review</span><b id="pendingMini">3</b></div><div class="mt-2 h-2 rounded-full bg-stone-100"><div id="pendingBar" class="h-2 w-[28%] rounded-full bg-amber-500"></div></div></div></div><button onclick="go('reports')" class="btn btn-soft mt-6 w-full">Review flagged content →</button></div></div></section>
+
+<section id="page-members" class="page"><div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p class="text-xs font-bold tracking-[.15em] text-sage-600">COMMUNITY</p><h2 class="mt-2 text-2xl font-bold">Member management</h2><p class="mt-2 text-sm text-stone-500">Keep the community welcoming and safe.</p></div><span class="text-sm text-stone-400">Registered members from MySQL</span></div><div class="panel mt-6"><div class="flex flex-col gap-3 border-b border-stone-100 p-4 md:flex-row md:items-center md:justify-between"><input id="memberSearch" oninput="renderMembers()" placeholder="Search name or email…" class="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm outline-none focus:border-sage-500 md:max-w-sm"/><select id="memberStatus" onchange="renderMembers()" class="rounded-xl border border-stone-200 px-3 py-2.5 text-sm"><option value="all">All statuses</option><option>Active</option><option>Banned</option></select></div><div class="table-wrap"><table class="w-full"><thead><tr><th>Member</th><th>Email</th><th>Role</th><th>Status</th><th>Joined</th><th>Action</th></tr></thead><tbody id="membersTable"></tbody></table></div><div class="border-t border-stone-100 p-4 text-xs text-stone-400" id="memberFoot"></div></div></section>
+
+<section id="page-trips" class="page">
+
+  <div><p class="text-xs font-bold tracking-[.15em] text-sage-600">SAFETY & CONTENT</p>
+
+    <h2 class="mt-2 text-2xl font-bold">Trip moderation</h2>
+
+    <p class="mt-2 text-sm text-stone-500">Review trip listings and remove unsafe or inappropriate posts.</p></div>
+
+    <div class="panel mt-6"><div class="flex flex-col gap-3 border-b border-stone-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+
+      <input id="tripSearch" oninput="renderTrips()" placeholder="Search trips, mountain or organizer…" class="w-full rounded-xl border border-stone-200 px-4 py-2.5 text-sm outline-none focus:border-sage-500 sm:max-w-sm"/>
+
+      <select id="tripStatus" onchange="renderTrips()"
+
+          class="rounded-xl border border-stone-200 px-3 py-2.5 text-sm">
+
+          <option value="all">All trips</option>
+
+          <option value="Active">Active</option>
+
+          <option value="Expired">Expired</option>
+
+          <option value="Cancelled">Cancelled</option>
+
+      </select></div>
+
+          <div class="table-wrap"><table class="w-full"><thead><tr><th>Trip / mountain</th><th>Organizer</th><th>Date</th><th>Members</th><th>Status</th><th>Action</th></tr></thead><tbody id="tripsTable"></tbody></table></div><div class="border-t border-stone-100 p-4 text-xs text-stone-400" id="tripFoot"></div></div></section>
+
+
+<section id="page-location-approvals" class="page">
+  <div>
+    <p class="text-xs font-bold tracking-[.15em] text-sage-600">
+      COMMUNITY CONTRIBUTIONS
+    </p>
+    <h2 class="mt-2 text-2xl font-bold text-stone-800">
+      Location approvals
+    </h2>
+    <p class="mt-2 text-sm text-stone-500">
+      Review new mountain and region suggestions submitted by members.
+    </p>
+  </div>
+
+  
+<div class="mb-6 flex flex-wrap border-b border-stone-200">
+  <button
+    type="button"
+    id="locationTabMountains"
+    onclick="setLocationTab('mountains')"
+    class="flex items-center gap-2 border-b-2 border-sage-600 px-5 py-4 text-sm font-semibold text-sage-700"
+  >
+    <i class="fa-solid fa-mountain"></i>
+    Mountain Requests
+  </button>
+
+  <button
+    type="button"
+    id="locationTabRegions"
+    onclick="setLocationTab('regions')"
+    class="flex items-center gap-2 border-b-2 border-transparent px-5 py-4 text-sm font-semibold text-stone-400 hover:text-stone-700"
+  >
+    <i class="fa-solid fa-map-location-dot"></i>
+    Region Requests
+  </button>
+</div>
+
+<div id="mountainRequestsList" class="mt-5 grid gap-4 lg:grid-cols-2"></div>
+<div id="regionRequestsList" class="mt-5 hidden md:grid gap-4 lg:grid-cols-2"></div>
+
+</section>
+
+
+<section id="page-reports" class="page">
+  <div><p class="text-xs font-bold tracking-[.15em] text-sage-600">TRUST & SAFETY</p><h2 class="mt-2 text-2xl font-bold">Community Reports</h2><p class="mt-2 text-sm text-stone-500">Review content reports submitted by members.</p></div>
+  <div class="mt-6 flex flex-wrap gap-2 border-b border-stone-200">
+    <button id="reportTabCommunity" class="rounded-t-xl border-b-2 border-sage-700 px-4 py-3 text-sm font-semibold text-sage-700" onclick="setReportTab('community')">Community Reports</button>
+    
+  </div>
+  <div id="communityReportsList" class="mt-5 grid gap-4 lg:grid-cols-2"></div>
+  <div id="tripReportsList" class="mt-5 hidden md:grid gap-4 lg:grid-cols-2"></div>
+</section>
+
+
+</div><footer class="border-t border-stone-200/70 px-5 py-5 text-xs text-stone-400 md:px-8">© 2026 Hiking Buddy · Admin Console <span class="float-right">Community first. Outdoors together.</span></footer>
+
+</main></div>
+
+
+
+<script>
+
+/* ===== LOGIN LOGIC ===== */
+
+const loginScreen = document.getElementById('loginScreen');
+
+const dashboard = document.getElementById('dashboard');
+
+const loginForm = document.getElementById('loginForm');
+
+const loginError = document.getElementById('loginError');
+
+
+
+
+
+const API_BASE = 'http\://127.0.0.1:8000/api';
+
+
+
+loginForm.addEventListener('submit', async function(e) {
+
+  e.preventDefault();
+
+
+
+  const email = document.getElementById('loginEmail').value.trim();
+
+  const password = document.getElementById('loginPassword').value;
+
+
+
+  const submitButton = loginForm.querySelector('button[type="submit"]');
+
+  submitButton.disabled = true;
+
+  submitButton.textContent = 'Signing in...';
+
+
+
+  try {
+
+    const response = await fetch(`${API_BASE}/login`, {
+
+      method: 'POST',
+
+      headers: {
+
+        'Content-Type': 'application/json',
+
+        'Accept': 'application/json'
+
+      },
+
+      body: JSON.stringify({ email, password })
+
+    });
+
+
+
+    const data = await response.json();
+
+
+
+    if (!response.ok) {
+
+      throw new Error(data.message || 'Invalid email or password.');
+
+    }
+
+
+
+    if (!data.user || data.user.role !== 'admin') {
+
+      // Do not allow ordinary members into the admin console.
+
+      if (data.token) {
+
+        await fetch(`${API_BASE}/logout`, {
+
+          method: 'POST',
+
+          headers: {
+
+            'Accept': 'application/json',
+
+            'Authorization': `Bearer ${data.token}`
+
+          }
+
+        });
+
+      }
+
+
+
+      throw new Error('Access denied. This account is not an administrator.');
+
+    }
+
+
+
+    if (!data.token) {
+
+      throw new Error('Login succeeded, but no authentication token was returned.');
+
+    }
+
+
+
+    sessionStorage.setItem('hb-admin-token', data.token);
+
+    sessionStorage.setItem('hb-admin-user', JSON.stringify(data.user));
+
+
+
+    loginError.classList.remove('show');
+
+    loginScreen.classList.add('hidden');
+
+    dashboard.classList.remove('dimmed');
+
+
+
+    log('Admin signed in');
+
+    dashboardInitialized = false;
+
+    initDashboard();
+
+
+
+  } catch (error) {
+
+    loginError.textContent = '⚠️ ' + error.message;
+
+    loginError.classList.add('show');
+
+  } finally {
+
+    submitButton.disabled = false;
+
+    submitButton.textContent = 'Sign in to dashboard →';
+
+  }
+
+});
+
+
+
+
+
+async function signOut() {
+
+  if (!confirm('Sign out of the admin console?')) return;
+
+
+
+  const token = sessionStorage.getItem('hb-admin-token');
+
+
+
+  try {
+
+    if (token) {
+
+      await fetch(`${API_BASE}/logout`, {
+
+        method: 'POST',
+
+        headers: adminHeaders()
+
+      });
+
+    }
+
+  } catch (error) {
+
+    console.error('Logout request failed:', error);
+
+  }
+
+
+
+  sessionStorage.removeItem('hb-admin-token');
+
+  sessionStorage.removeItem('hb-admin-user');
+
+
+
+  loginScreen.classList.remove('hidden');
+
+  dashboard.classList.add('dimmed');
+
+  loginError.classList.remove('show');
+
+}
+
+
+
+
+
+// Add shake keyframes dynamically
+
+const styleSheet = document.createElement('style');
+
+styleSheet.textContent = `
+
+  @keyframes shake {
+
+    0%, 100% { transform: translateX(0); }
+
+    20% { transform: translateX(-8px); }
+
+    40% { transform: translateX(8px); }
+
+    60% { transform: translateX(-5px); }
+
+    80% { transform: translateX(5px); }
+
+  }
+
+`;
+
+document.head.appendChild(styleSheet);
+
+
+
+
+
+let serverMembers = [];
+
+let serverTrips = [];
+
+
+
+function adminHeaders() {
+
+  const token = sessionStorage.getItem('hb-admin-token');
+
+
+
+  return {
+
+    'Accept': 'application/json',
+
+    'Authorization': `Bearer ${token}`
+
+  };
+
+}
+
+async function loadMembers() {
+
+  const table = document.getElementById('membersTable');
+
+  table.innerHTML = `
+
+    <tr>
+
+      <td colspan="6" class="py-10 text-center text-stone-400">
+
+        Loading members from MySQL...
+
+      </td>
+
+    </tr>
+
+  `;
+
+
+
+  try {
+
+    const response = await fetch(`${API_BASE}/admin/members`, {
+
+      method: 'GET',
+
+      headers: adminHeaders()
+
+    });
+
+
+
+    const data = await response.json();
+
+
+
+    if (response.status === 401 || response.status === 403) {
+
+      throw new Error(data.message || 'You are not authorised to view members.');
+
+    }
+
+
+
+    if (!response.ok || !data.success) {
+
+      throw new Error(data.message || 'Could not load members.');
+
+    }
+
+
+
+    serverMembers = data.members || [];
+
+    renderMembers();
+
+    renderRecent();
+
+
+
+    document.getElementById('kUsers').textContent =
+
+      serverMembers.length.toLocaleString();
+
+
+
+  } catch (error) {
+
+    table.innerHTML = `
+
+      <tr>
+
+        <td colspan="6" class="py-10 text-center text-red-500">
+
+          ${esc(error.message)}
+
+        </td>
+
+      </tr>
+
+    `;
+
+
+
+    document.getElementById('memberFoot').textContent =
+
+      'Unable to load members. Check the Laravel server and login.';
+
+  }
+
+}
+
+
+let overviewData = null;
+// --------------------------------------------------
+// LOAD ADMIN OVERVIEW FROM MYSQL
+// --------------------------------------------------
+
+async function loadAdminOverview() {
+    try {
+        console.log('Loading admin overview...');
+
+        const response = await fetch(`${API_BASE}/admin/overview`, {
+            method: 'GET',
+            headers: adminHeaders()
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        console.log('Overview API response:', response.status, data);
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message || `API request failed with status ${response.status}`
+            );
+        }
+
+        overviewData = data;
+
+        const stats = data.statistics;
+
+        if (!stats) {
+            throw new Error('The API response does not contain statistics.');
+        }
+
+        document.getElementById('kUsers').textContent =
+            Number(stats.total_users || 0).toLocaleString();
+
+        document.getElementById('kTrips').textContent =
+            Number(stats.active_trips_this_month || 0).toLocaleString();
+
+        document.getElementById('kMountains').textContent =
+            Number(stats.total_mountains || 0).toLocaleString();
+
+        document.getElementById('kJoins').textContent =
+            Number(stats.total_joins || 0).toLocaleString();
+
+        updateGrowth();
+        updatePopularMountains();
+
+    } catch (error) {
+        console.error('Admin overview loading error:', error);
+
+        ['kUsers', 'kTrips', 'kMountains', 'kJoins'].forEach(id => {
+            document.getElementById(id).textContent = '—';
+        });
+    }
+}
+
+
+
+let dashboardInitialized = false;
+
+function initDashboard() {
+
+  if (dashboardInitialized) return;
+
+  dashboardInitialized = true;
+
+  renderAll();
+
+  loadMembers();
+
+    // --------------------------------------------------
+
+  // LOAD GROUP TRIPS FROM MYSQL
+
+  // --------------------------------------------------
+
+
+
+  async function loadTrips() {
+      const table = document.getElementById('tripsTable');
+
+      table.innerHTML = `
+          <tr>
+              <td colspan="6" class="py-10 text-center text-stone-400">
+                  Loading trips from MySQL...
+              </td>
+          </tr>
+      `;
+
+      try {
+          const response = await fetch(`${API_BASE}/admin/group-trips`, {
+              method: 'GET',
+              headers: adminHeaders()
+          });
+
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok || !data.success) {
+              throw new Error(data.message || 'Could not load group trips.');
+          }
+
+          // Use Laravel's effective_status when available. The date-based
+          // fallback also keeps the table correct if the API has not yet
+          // been updated to return that field.
+          const today = new Date();
+          const todayKey = [
+              today.getFullYear(),
+              String(today.getMonth() + 1).padStart(2, '0'),
+              String(today.getDate()).padStart(2, '0')
+          ].join('-');
+
+          serverTrips = (data.trips || []).map(trip => {
+              const tripDate = String(trip.trip_date || '').slice(0, 10);
+              let effectiveStatus = String(trip.effective_status || '').trim();
+
+              if (!effectiveStatus) {
+                  if (String(trip.status || '').toLowerCase() === 'cancelled') {
+                      effectiveStatus = 'Cancelled';
+                  } else if (tripDate && tripDate < todayKey) {
+                      effectiveStatus = 'Expired';
+                  } else if (String(trip.status || '').toLowerCase() === 'active') {
+                      effectiveStatus = 'Active';
+                  } else {
+                      effectiveStatus = String(trip.status || 'Unknown');
+                  }
+              }
+
+              return {
+                  ...trip,
+                  mountain: trip.mountain_name || '',
+                  organizer: trip.organizer?.name || 'Unknown organizer',
+                  date: tripDate,
+                  members: Number(trip.joined_count || 0),
+                  effective_status: effectiveStatus,
+                  status: effectiveStatus
+              };
+          });
+
+          renderTrips();
+
+      } catch (error) {
+          table.innerHTML = `
+              <tr>
+                  <td colspan="6" class="py-10 text-center text-red-500">
+                      ${esc(error.message)}
+                  </td>
+              </tr>
+          `;
+
+          document.getElementById('tripFoot').textContent =
+              'Unable to load trips. Check the Laravel server and admin login.';
+          console.error('Admin trip loading error:', error);
+      }
+  }
+
+  loadTrips();
+  loadLocationRequests();
+  loadAdminReports();
+  loadAdminNotifications();
+  if (window.adminNotificationTimer) clearInterval(window.adminNotificationTimer);
+  window.adminNotificationTimer = setInterval(loadAdminNotifications, 15000);
+
+  drawCharts();
+  loadAdminOverview();
+
+  const params = new URLSearchParams(window.location.search);
+  const requestedPage = params.get('page');
+  const initial = requestedPage || location.hash.replace('#','');
+  if (['overview','members','trips','location-approvals','reports','settings'].includes(initial)) {
+    go(initial, false);
+    const tab = params.get('tab');
+    const targetId = params.get('id');
+    if (initial === 'location-approvals') {
+      setLocationTab(tab === 'regions' ? 'regions' : 'mountains');
+      if (targetId) setTimeout(() => focusAdminItem(`location-request-${targetId}`), 700);
+    }
+    if (initial === 'reports') {
+      setReportTab(tab === 'trips' ? 'trips' : 'community');
+      if (targetId) setTimeout(() => focusAdminItem(`report-${targetId}`), 700);
+    }
+  }
+
+}
+
+function persist() {
+
+  localStorage.setItem(key, JSON.stringify(state));
+
+  renderAll();
+
+}
+
+
+
+function log(text) {
+
+  state.activity.unshift({text, time: new Date().toLocaleString()});
+
+  state.activity = state.activity.slice(0, 12);
+
+  localStorage.setItem(key, JSON.stringify(state));
+
+}
+
+
+
+function esc(s='') {
+
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+}
+
+
+
+function go(page, updateHash = true) {
+  document.querySelectorAll('.page').forEach(e => e.classList.toggle('active', e.id === 'page-' + page));
+  document.querySelectorAll('.navitem').forEach(e => e.classList.toggle('active', e.dataset.page === page));
+  const names = {overview:'Overview', members:'Member management', trips:'Trip moderation', 'location-approvals':'Location approvals', reports:'Reports', settings:'Announcements & settings'};
+  const label = names[page] || 'Overview';
+  document.getElementById('crumb').textContent = label;
+  document.getElementById('topTitle').textContent = page === 'overview' ? 'Community overview' : label;
+  if (updateHash) location.hash = page;
+  closeMenu();
+}
+
+
+
+document.querySelectorAll('[data-page]').forEach(a => a.addEventListener('click', e => {
+
+  e.preventDefault();
+
+  go(a.dataset.page);
+
+}));
+
+
+
+function badge(status) {
+
+  const c = status === 'Active' || status === 'Upcoming' ? 'bg-sage-100 text-sage-700' :
+
+            status === 'Banned' || status === 'Flagged' ? 'bg-red-100 text-red-700' :
+
+            status === 'Pending' ? 'bg-amber-100 text-amber-800' : 'bg-stone-100 text-stone-600';
+
+  return `<span class="pill ${c}">${esc(status)}</span>`;
+
+}
+
+
+
+
+
+
+
+function renderMembers() {
+
+  const q = (document.getElementById('memberSearch')?.value || '').toLowerCase();
+
+  const filter = document.getElementById('memberStatus')?.value || 'all';
+
+
+
+  const list = serverMembers.filter(m => {
+
+    const status = String(m.status || '').toLowerCase();
+
+
+
+    return (
+
+      (m.name + ' ' + m.email).toLowerCase().includes(q) &&
+
+      (filter === 'all' || status === filter.toLowerCase())
+
+    );
+
+  });
+
+
+
+  document.getElementById('membersTable').innerHTML = list.map(m => {
+
+    const status = String(m.status || '').toLowerCase();
+
+    const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
+
+    const displayRole = String(m.role || 'member');
+
+    const isAdmin = displayRole.toLowerCase() === 'admin';
+
+
+
+    return `
+
+      <tr>
+
+        <td>
+
+          <div class="flex items-center gap-3">
+
+            <span class="grid h-9 w-9 place-items-center rounded-full bg-sage-100 font-semibold text-sage-700">
+
+              ${esc(m.name.split(' ').map(x => x[0]).join('').slice(0, 2))}
+
+            </span>
+
+            <span class="font-semibold">${esc(m.name)}</span>
+
+          </div>
+
+        </td>
+
+
+
+        <td class="text-stone-500">${esc(m.email)}</td>
+
+
+
+        <td>${esc(displayRole.charAt(0).toUpperCase() + displayRole.slice(1))}</td>
+
+
+
+        <td>${badge(displayStatus)}</td>
+
+
+
+        <td class="text-stone-500">${esc(m.joined || '—')}</td>
+
+
+
+        <td>
+
+          <div class="flex items-center gap-2">
+
+            <button
+
+              class="btn btn-soft"
+
+              onclick="viewMember(${m.id})">
+
+              View
+
+            </button>
+
+
+
+            ${!isAdmin ? `
+
+              <button
+
+                class="btn btn-soft"
+
+                onclick="warnMember(${m.id})"
+
+                ${status === 'banned' ? 'disabled' : ''}>
+
+                Warn
+
+              </button>
+
+
+
+              <button
+
+                class="btn ${status === 'banned' ? 'btn-green' : 'btn-red'}"
+
+                onclick="toggleBan(${m.id})">
+
+                ${status === 'banned' ? 'Unban' : 'Ban'}
+
+              </button>
+
+            ` : `
+
+              <span class="text-xs text-stone-400">Protected account</span>
+
+            `}
+
+          </div>
+
+        </td>
+
+      </tr>
+
+    `;
+
+  }).join('') || `
+
+    <tr>
+
+      <td colspan="6" class="py-10 text-center text-stone-400">
+
+        No members match this search.
+
+      </td>
+
+    </tr>
+
+  `;
+
+
+
+  document.getElementById('memberFoot').textContent =
+
+    `Showing ${list.length} of ${serverMembers.length} registered members`;
+
+}
+
+
+
+
+
+
+
+// View member information and warning history
+
+async function viewMember(id) {
+
+  const member = serverMembers.find(m => Number(m.id) === Number(id));
+
+
+
+  if (!member) return;
+
+
+
+  try {
+
+    const response = await fetch(
+
+      `${API_BASE}/admin/members/${id}/warnings`,
+
+      { headers: adminHeaders() }
+
+    );
+
+
+
+    const data = await response.json();
+
+
+
+    if (!response.ok) {
+
+      throw new Error(data.message || 'Could not load member details.');
+
+    }
+
+
+
+    const warningHistory = (data.warnings || []).map((w, index) =>
+
+      `${index + 1}. ${w.reason}\nDate: ${new Date(w.created_at).toLocaleString()}\nIssued by: ${w.admin_name || 'Administrator'}`
+
+    ).join('\n\n');
+
+
+
+    alert(
+
+      `MEMBER DETAILS\n\n` +
+
+      `Name: ${member.name}\n` +
+
+      `Email: ${member.email}\n` +
+
+      `Role: ${member.role}\n` +
+
+      `Status: ${member.status}\n` +
+
+      `Joined: ${member.joined || '—'}\n\n` +
+
+      `WARNING HISTORY\n\n` +
+
+      (warningHistory || 'No warnings recorded.')
+
+    );
+
+
+
+  } catch (error) {
+
+    alert(error.message);
+
+  }
+
+}
+
+
+
+
+
+// Issue a warning and save it in MySQL
+
+async function warnMember(id) {
+
+  const member = serverMembers.find(m => Number(m.id) === Number(id));
+
+
+
+  if (!member || member.status === 'banned') return;
+
+
+
+  const reason = prompt(`Enter the warning reason for ${member.name}:`);
+
+
+
+  if (reason === null) return;
+
+
+
+  if (!reason.trim()) {
+
+    alert('Please enter a warning reason.');
+
+    return;
+
+  }
+
+
+
+  try {
+
+    const response = await fetch(
+
+      `${API_BASE}/admin/members/${id}/warnings`,
+
+      {
+
+        method: 'POST',
+
+        headers: {
+
+          ...adminHeaders(),
+
+          'Content-Type': 'application/json'
+
+        },
+
+        body: JSON.stringify({ reason: reason.trim() })
+
+      }
+
+    );
+
+
+
+    const data = await response.json();
+
+
+
+    if (!response.ok) {
+
+      throw new Error(data.message || 'Could not issue warning.');
+
+    }
+
+
+
+    alert('Warning issued and saved successfully.');
+
+
+
+    log(`Issued warning to ${member.name}`);
+
+
+
+    await loadMembers();
+
+
+
+  } catch (error) {
+
+    alert(error.message);
+
+  }
+
+}
+
+
+
+
+
+// Ban or unban a member using Laravel
+
+async function toggleBan(id) {
+
+  const member = serverMembers.find(m => Number(m.id) === Number(id));
+
+
+
+  if (!member) return;
+
+
+
+  const currentlyBanned =
+
+    String(member.status).toLowerCase() === 'banned';
+
+
+
+  const newStatus = currentlyBanned ? 'active' : 'banned';
+
+
+
+  if (currentlyBanned) {
+
+    if (!confirm(`Are you sure you want to unban ${member.name}?`)) {
+
+      return;
+
+    }
+
+  } else {
+
+    if (!confirm(
+
+      `Are you sure you want to ban ${member.name}?\n\n` +
+
+      `This member must have received at least one warning first.`
+
+    )) {
+
+      return;
+
+    }
+
+  }
+
+
+
+  try {
+
+    const response = await fetch(
+
+      `${API_BASE}/admin/members/${id}/status`,
+
+      {
+
+        method: 'PATCH',
+
+        headers: {
+
+          ...adminHeaders(),
+
+          'Content-Type': 'application/json'
+
+        },
+
+        body: JSON.stringify({ status: newStatus })
+
+      }
+
+    );
+
+
+
+    const data = await response.json();
+
+
+
+    if (!response.ok) {
+
+      throw new Error(data.message || 'Could not update member status.');
+
+    }
+
+
+
+    alert(data.message);
+
+
+
+    log(`${currentlyBanned ? 'Unbanned' : 'Banned'} member: ${member.name}`);
+
+
+
+    await loadMembers();
+
+
+
+  } catch (error) {
+
+    alert(error.message);
+
+  }
+
+}
+
+
+
+function deleteMember(id) {
+
+  const m = state.members.find(x => x.id === id);
+
+  if (!m || !confirm(`Delete ${m.name} from this demo dashboard?`)) return;
+
+  state.members = state.members.filter(x => x.id !== id);
+
+  log(`Deleted member record: ${m.name}`);
+
+  persist();
+
+}
+
+
+
+function addDemoMember() {
+
+  const id = Math.max(0, ...state.members.map(m => m.id)) + 1;
+
+  state.members.unshift({
+
+    id, name:'New Demo Member', email:`demo${id}@example.com`,
+
+    role:'Member', status:'Active',
+
+    joined: new Date().toLocaleDateString('en-US', {month:'short', day:'2-digit', year:'numeric'})
+
+  });
+
+  log('Added a demo member');
+
+  persist();
+
+}
+
+
+
+function renderTrips() {
+    const q = (document.getElementById('tripSearch')?.value || '').toLowerCase();
+    const filter = (document.getElementById('tripStatus')?.value || 'all').toLowerCase();
+
+    const list = serverTrips.filter(trip => {
+        const searchText = `${trip.title || ''} ${trip.mountain || ''} ${trip.organizer || ''}`.toLowerCase();
+        const status = String(trip.effective_status || trip.status || 'Unknown').toLowerCase();
+        return searchText.includes(q) && (filter === 'all' || status === filter);
+    });
+
+    document.getElementById('tripsTable').innerHTML = list.map(trip => {
+        const status = String(trip.effective_status || trip.status || 'Unknown');
+        return `
+            <tr>
+                <td>
+                    <div class="font-semibold">${esc(trip.title || 'Untitled trip')}</div>
+                    <div class="mt-1 text-xs text-stone-400">${esc(trip.mountain || '')}</div>
+                </td>
+                <td>${esc(trip.organizer || 'Unknown organizer')}</td>
+                <td>${esc(trip.date || '—')}</td>
+                <td>${Number(trip.members || 0)} joined</td>
+                <td>${badge(status)}</td>
+                <td>
+                    <button class="btn btn-red" onclick="removeTrip(${Number(trip.id)})">
+                        Remove
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('') || `
+        <tr>
+            <td colspan="6" class="py-10 text-center text-stone-400">
+                No trips match this filter.
+            </td>
+        </tr>
+    `;
+
+    document.getElementById('tripFoot').textContent =
+        `Showing ${list.length} of ${serverTrips.length} trips from MySQL`;
+}
+
+
+// --------------------------------------------------
+
+// REMOVE A GROUP TRIP FROM MYSQL
+
+// --------------------------------------------------
+
+
+
+async function removeTrip(id) {
+
+
+
+    const trip = serverTrips.find(
+
+        item => Number(item.id) === Number(id)
+
+    );
+
+
+
+    if (!trip) {
+
+        alert('Trip not found.');
+
+        return;
+
+    }
+
+
+
+    if (!confirm(
+
+        `Remove "${trip.title}" permanently? This action cannot be undone.`
+
+    )) {
+
+        return;
+
+    }
+
+
+
+    try {
+
+        const response = await fetch(
+
+            `${API_BASE}/admin/group-trips/${id}`,
+
+            {
+
+                method: 'DELETE',
+
+                headers: adminHeaders()
+
+            }
+
+        );
+
+
+
+        const data = await response.json().catch(() => ({}));
+
+
+
+        if (!response.ok || !data.success) {
+
+            throw new Error(data.message || 'Unable to remove this trip.');
+
+        }
+
+
+
+        // Update the page after Laravel confirms deletion.
+
+        serverTrips = serverTrips.filter(
+
+            item => Number(item.id) !== Number(id)
+
+        );
+
+
+
+        renderTrips();
+
+
+
+        alert(data.message || 'Trip removed successfully.');
+
+
+
+    } catch (error) {
+
+        alert(error.message);
+
+    }
+
+}
+
+
+
+let adminLocationRequests = [];
+let adminReports = [];
+let adminNotifications = [];
+let activeLocationTab = 'mountains';
+let activeReportTab = 'community';
+let adminUnreadTotal = 0;
+
+async function adminFetch(url, options = {}) {
+  const response = await fetch(`${API_BASE}${url}`, {
+    ...options,
+    headers: { ...adminHeaders(), ...(options.headers || {}) }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || 'The request could not be completed.');
+  return data;
+}
+
+
+
+function setLocationTab(tab) {
+  const mountainTab = document.getElementById('locationTabMountains');
+  const regionTab = document.getElementById('locationTabRegions');
+
+  const mountainList = document.getElementById('mountainRequestsList');
+  const regionList = document.getElementById('regionRequestsList');
+
+  const activeClasses = [
+    'border-sage-600',
+    'text-sage-700'
+  ];
+
+  const inactiveClasses = [
+    'border-transparent',
+    'text-stone-400'
+  ];
+
+  // Reset both tabs
+  [mountainTab, regionTab].forEach(button => {
+    button.classList.remove(...activeClasses);
+    button.classList.add(...inactiveClasses);
+  });
+
+  if (tab === 'mountains') {
+    mountainTab.classList.add(...activeClasses);
+    mountainTab.classList.remove(...inactiveClasses);
+
+    mountainList.classList.remove('hidden');
+    regionList.classList.add('hidden');
+  } else {
+    regionTab.classList.add(...activeClasses);
+    regionTab.classList.remove(...inactiveClasses);
+
+    regionList.classList.remove('hidden');
+    mountainList.classList.add('hidden');
+  }
+}
+
+
+function setReportTab(tab) {
+  activeReportTab = tab;
+  const community = tab === 'community';
+  document.getElementById('communityReportsList').classList.toggle('hidden', !community);
+  document.getElementById('tripReportsList').classList.toggle('hidden', community);
+  document.getElementById('reportTabCommunity').className = `rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold ${community ? 'border-sage-700 text-sage-700' : 'border-transparent text-stone-500'}`;
+  document.getElementById('reportTabTrips').className = `rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold ${!community ? 'border-sage-700 text-sage-700' : 'border-transparent text-stone-500'}`;
+}
+
+function requestCard(item, type) {
+  const pending = item.status === 'pending';
+  const isMountain = type === 'mountain';
+  return `<article id="location-request-${Number(item.id)}" class="panel p-5">
+    <div class="flex items-start justify-between gap-3"><div><span class="pill ${pending ? 'bg-amber-100 text-amber-800' : item.status === 'approved' ? 'bg-sage-100 text-sage-700' : 'bg-red-100 text-red-700'}">${esc(item.status || 'pending')}</span>
+    <h3 class="mt-3 font-bold">${esc(item.name || 'Unnamed request')}</h3>
+    ${isMountain ? `<p class="mt-1 text-sm text-stone-500">Region: ${esc(item.region || '—')} · Difficulty: ${esc(item.difficulty || '—')}</p>` : '<p class="mt-1 text-sm text-stone-500">New region suggestion</p>'}</div>
+    <span class="text-xs text-stone-400">${item.created_at ? new Date(item.created_at).toLocaleString() : ''}</span></div>
+    ${item.description ? `<p class="mt-4 text-sm leading-6 text-stone-600">${esc(item.description)}</p>` : ''}
+    <p class="mt-3 text-xs text-stone-400">Submitted by ${esc(item.user?.name || item.user?.email || 'Member')}</p>
+    ${pending ? `<div class="mt-5 flex flex-wrap gap-2 border-t border-stone-100 pt-4"><button class="btn btn-green" onclick="reviewLocationRequest(${Number(item.id)},'approved')">Approve</button><button class="btn btn-red" onclick="reviewLocationRequest(${Number(item.id)},'rejected')">Reject</button></div>` : (item.rejection_reason ? `<p class="mt-3 text-xs text-red-600">Reason: ${esc(item.rejection_reason)}</p>` : '')}
+  </article>`;
+}
+
+async function loadLocationRequests() {
+  const mountainEl = document.getElementById('mountainRequestsList');
+  const regionEl = document.getElementById('regionRequestsList');
+  mountainEl.innerHTML = regionEl.innerHTML = '<div class="panel p-8 text-center text-sm text-stone-400">Loading requests from MySQL…</div>';
+  try {
+    const data = await adminFetch('/admin/location-requests');
+    adminLocationRequests = Array.isArray(data.requests) ? data.requests : Array.isArray(data.location_requests) ? data.location_requests : Array.isArray(data.data) ? data.data : Array.isArray(data.requests?.data) ? data.requests.data : [];
+    const mountainItems = adminLocationRequests.filter(x => x.type === 'mountain');
+    const regionItems = adminLocationRequests.filter(x => x.type === 'region');
+    mountainEl.innerHTML = mountainItems.map(x => requestCard(x, 'mountain')).join('') || '<div class="panel p-8 text-center text-sm text-stone-400">No mountain requests.</div>';
+    regionEl.innerHTML = regionItems.map(x => requestCard(x, 'region')).join('') || '<div class="panel p-8 text-center text-sm text-stone-400">No region requests.</div>';
+    const pending = adminLocationRequests.filter(x => x.status === 'pending').length;
+    document.getElementById('locationCount').textContent = pending;
+  } catch (error) {
+    mountainEl.innerHTML = regionEl.innerHTML = `<div class="panel p-8 text-center text-sm text-red-500">${esc(error.message)}</div>`;
+  }
+}
+
+async function reviewLocationRequest(id, status) {
+  let rejection_reason = '';
+  if (status === 'rejected') {
+    rejection_reason = prompt('Optional: enter a reason for rejecting this request.') || '';
+    if (!confirm('Reject this location request?')) return;
+  } else if (!confirm('Approve this location request?')) return;
+  try {
+    await adminFetch(`/admin/location-requests/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({status, rejection_reason})
+    });
+    await loadLocationRequests();
+    log(`${status === 'approved' ? 'Approved' : 'Rejected'} location request #${id}`);
+  } catch (error) { alert(error.message); }
+}
+
+function reportCard(item, category) {
+  const pending = item.status === 'pending';
+  const title = item.target_title || item.target?.title || item.target?.topic || `Content #${item.reportable_id}`;
+  const owner = item.target_owner || item.target?.user?.name || item.target?.organizer?.name || '—';
+  return `<article id="report-${Number(item.id)}" class="panel p-5">
+    <div class="flex items-start justify-between gap-3"><div><span class="pill ${pending ? 'bg-amber-100 text-amber-800' : item.status === 'resolved' ? 'bg-sage-100 text-sage-700' : 'bg-stone-100 text-stone-600'}">${esc(item.status || 'pending')}</span>
+    <h3 class="mt-3 font-bold">${esc(title)}</h3><p class="mt-1 text-sm text-stone-500">${category === 'community' ? 'Community post' : 'Group trip'} · Content owner: ${esc(owner)}</p></div>
+    <span class="text-xs text-stone-400">${item.created_at ? new Date(item.created_at).toLocaleString() : ''}</span></div>
+    <p class="mt-4 text-sm leading-6 text-stone-600">${esc(item.reason || '')}</p>
+    <p class="mt-3 text-xs text-stone-400">Reported by ${esc(item.reporter?.name || item.reporter?.email || 'Member')}</p>
+    ${item.admin_note ? `<p class="mt-2 text-xs text-stone-500">Admin note: ${esc(item.admin_note)}</p>` : ''}
+    ${pending ? `<div class="mt-5 flex flex-wrap gap-2 border-t border-stone-100 pt-4"><button class="btn btn-green" onclick="reviewReport(${Number(item.id)},'resolved')">Resolve report</button><button class="btn btn-soft" onclick="reviewReport(${Number(item.id)},'dismissed')">Dismiss report</button></div>` : ''}
+  </article>`;
+}
+
+async function loadAdminReports() {
+  const communityEl = document.getElementById('communityReportsList');
+  const tripsEl = document.getElementById('tripReportsList');
+  communityEl.innerHTML = tripsEl.innerHTML = '<div class="panel p-8 text-center text-sm text-stone-400">Loading reports from MySQL…</div>';
+  try {
+    const data = await adminFetch('/admin/reports');
+    adminReports = Array.isArray(data.reports) ? data.reports : Array.isArray(data.reports?.data) ? data.reports.data : Array.isArray(data.data) ? data.data : [];
+    const communityItems = adminReports.filter(x => x.reportable_type === 'App\\Models\\CommunityPost' || x.reportable_type === 'community_post' || x.type === 'community_post');
+    const tripItems = adminReports.filter(x => x.reportable_type === 'App\\Models\\GroupTrip' || x.reportable_type === 'group_trip' || x.type === 'group_trip');
+    communityEl.innerHTML = communityItems.map(x => reportCard(x, 'community')).join('') || '<div class="panel p-8 text-center text-sm text-stone-400">No community reports.</div>';
+   
+    const pending = adminReports.filter(x => x.status === 'pending').length;
+    document.getElementById('reportCount').textContent = pending;
+    document.getElementById('pendingMini').textContent = pending;
+    document.getElementById('pendingBar').style.width = Math.min(100, pending * 9) + '%';
+  } catch (error) {
+    communityEl.innerHTML = tripsEl.innerHTML = `<div class="panel p-8 text-center text-sm text-red-500">${esc(error.message)}</div>`;
+  }
+}
+
+async function reviewReport(id, status) {
+  const admin_note = prompt(status === 'resolved' ? 'Optional: add a note about the action taken.' : 'Optional: add a reason for dismissing this report.') || '';
+  if (!confirm(`${status === 'resolved' ? 'Resolve' : 'Dismiss'} this report?`)) return;
+  try {
+    await adminFetch(`/admin/reports/${id}`, {
+      method: 'PATCH',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({status, admin_note})
+    });
+    await loadAdminReports();
+    log(`${status === 'resolved' ? 'Resolved' : 'Dismissed'} report #${id}`);
+  } catch (error) { alert(error.message); }
+}
+
+function renderReports() { loadAdminReports(); }
+
+async function loadAdminNotifications() {
+  try {
+    const data = await adminFetch('/admin/notifications');
+    adminNotifications = data.notifications?.data || data.notifications || [];
+    const counts = data.unread_counts || {};
+    adminUnreadTotal = Number(counts.total || adminNotifications.filter(n => !n.read_at).length || 0);
+    const badge = document.getElementById('adminUnreadBadge');
+    badge.textContent = adminUnreadTotal > 99 ? '99+' : adminUnreadTotal;
+    badge.classList.toggle('hidden', adminUnreadTotal < 1);
+    renderAdminNotifications();
+  } catch (error) {
+    console.error('Admin notifications could not be loaded:', error);
+  }
+}
+
+function renderAdminNotifications() {
+  const el = document.getElementById('adminNotificationList');
+  if (!el) return;
+  el.innerHTML = adminNotifications.map(n => {
+    const d = n.data || {};
+    return `<button type="button" onclick="openAdminNotification('${String(n.id).replace(/'/g, '')}')" class="w-full rounded-xl p-3 text-left hover:bg-sage-50 ${n.read_at ? 'opacity-70' : 'bg-sage-50/70'}">
+      <span class="flex items-start justify-between gap-3"><b class="text-sm">${esc(d.title || 'New admin activity')}</b>${!n.read_at ? '<i class="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500"></i>' : ''}</span>
+      <span class="mt-1 block text-xs leading-5 text-stone-600">${esc(d.message || '')}</span>
+      <span class="mt-2 block text-[11px] text-stone-400">${n.created_at ? new Date(n.created_at).toLocaleString() : ''}</span>
+    </button>`;
+  }).join('') || '<p class="py-6 text-center text-sm text-stone-400">No admin notifications yet.</p>';
+}
+
+function toggleAdminNotifications() {
+  const panel = document.getElementById('adminNotificationPanel');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) loadAdminNotifications();
+}
+
+async function markAllAdminNotificationsRead() {
+  try {
+    await adminFetch('/admin/notifications/read-all', {method:'PATCH'});
+    await loadAdminNotifications();
+  } catch (error) { alert(error.message); }
+}
+
+async function openAdminNotification(id) {
+  const notification = adminNotifications.find(n => String(n.id) === String(id));
+  if (!notification) return;
+  try {
+    if (!notification.read_at) {
+      await adminFetch(`/admin/notifications/${id}/read`, {method:'PATCH'});
+    }
+    document.getElementById('adminNotificationPanel').classList.add('hidden');
+    const targetUrl = new URL(notification.data?.url || window.location.href, window.location.href);
+    const params = targetUrl.searchParams;
+    const page = params.get('page') || 'overview';
+    const tab = params.get('tab') || '';
+    const targetId = params.get('id') || notification.data?.related_id;
+    go(page, false);
+    if (page === 'location-approvals') {
+      setLocationTab(tab === 'regions' ? 'regions' : 'mountains');
+      await loadLocationRequests();
+      if (targetId) focusAdminItem(`location-request-${targetId}`);
+    } else if (page === 'reports') {
+      setReportTab(tab === 'trips' ? 'trips' : 'community');
+      await loadAdminReports();
+      if (targetId) focusAdminItem(`report-${targetId}`);
+    }
+    await loadAdminNotifications();
+  } catch (error) { alert(error.message); }
+}
+
+function focusAdminItem(id) {
+  setTimeout(() => {
+    const item = document.getElementById(id);
+    if (!item) return;
+    item.scrollIntoView({behavior:'smooth', block:'center'});
+    item.classList.add('ring-2','ring-amber-400');
+    setTimeout(() => item.classList.remove('ring-2','ring-amber-400'), 3500);
+  }, 100);
+}
+
+
+function removeReportedTrip(id) {
+
+  const r = state.reports.find(x => x.id === id);
+
+  if (!r) return;
+
+  const t = state.trips.find(x => x.title === r.target);
+
+  if (t) state.trips = state.trips.filter(x => x.id !== t.id);
+
+  r.status = 'Action taken';
+
+  log(`Removed reported trip and actioned report: ${r.target}`);
+
+  persist();
+
+}
+
+const announcementForm = document.getElementById('announcementForm');
+
+if (announcementForm) {
+    announcementForm.addEventListener('submit', e => {
+
+        e.preventDefault();
+
+        state.announcements.unshift({
+            id: Date.now(),
+
+            title: document.getElementById('announcementTitle').value.trim(),
+
+            body: document.getElementById('announcementBody').value.trim(),
+
+            date: new Date().toLocaleString()
+        });
+
+        log('Published platform announcement');
+
+        e.target.reset();
+
+        persist();
+    });
+}
+
+
+function renderSettings() {
+
+  document.getElementById('announcementList').innerHTML = state.announcements.map(a =>
+
+    `<div class="rounded-xl border border-stone-200 p-4">
+
+      <div class="flex justify-between gap-2">
+
+        <b class="text-sm">${esc(a.title)}</b>
+
+        <button class="text-xs text-red-600" onclick="deleteAnnouncement(${a.id})">Remove</button>
+
+      </div>
+
+      <p class="mt-2 text-sm leading-6 text-stone-600">${esc(a.body)}</p>
+
+      <p class="mt-2 text-xs text-stone-400">${esc(a.date)}</p>
+
+    </div>`
+
+  ).join('') || '<p class="text-sm text-stone-400">No announcements published yet.</p>';
+
+
+
+  document.getElementById('activityList').innerHTML = state.activity.slice(0, 8).map(a =>
+
+    `<div class="flex gap-3">
+
+      <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-sage-500"></span>
+
+      <div>
+
+        <p class="text-sm">${esc(a.text)}</p>
+
+        <p class="mt-1 text-xs text-stone-400">${esc(a.time)}</p>
+
+      </div>
+
+    </div>`
+
+  ).join('');
+
+}
+
+
+
+function deleteAnnouncement(id) {
+
+  state.announcements = state.announcements.filter(a => a.id !== id);
+
+  log('Removed an announcement');
+
+  persist();
+
+}
+
+
+
+
+
+function renderRecent() {
+
+  document.getElementById('recentMembers').innerHTML =
+
+    serverMembers.slice(0, 4).map(m => {
+
+      const status = String(m.status || '').toLowerCase();
+
+      const displayStatus = status.charAt(0).toUpperCase() + status.slice(1);
+
+
+
+      return `
+
+        <tr>
+
+          <td>
+
+            <div class="font-semibold">${esc(m.name)}</div>
+
+            <div class="mt-1 text-xs text-stone-400">${esc(m.email)}</div>
+
+          </td>
+
+          <td class="text-stone-500">${esc(m.joined || '—')}</td>
+
+          <td>${badge(displayStatus)}</td>
+
+        </tr>
+
+      `;
+
+    }).join('') || `
+
+      <tr>
+
+        <td colspan="3" class="py-8 text-center text-stone-400">
+
+          No registered members yet.
+
+        </td>
+
+      </tr>
+
+    `;
+
+}
+
+function renderAll() {
+    renderMembers();
+    renderTrips();
+    renderReports();
+    renderSettings();
+    renderRecent();
+}
+
+
+let growthChart, mountainChart;
+
+function drawCharts() {
+    const base = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: {
+                grid: { display: false },
+                ticks: {
+                    color: '#8b9085',
+                    font: { size: 11 }
+                }
+            },
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f0f1ed' },
+                ticks: {
+                    color: '#8b9085',
+                    font: { size: 11 }
+                }
+            }
+        }
+    };
+
+    growthChart = new Chart(document.getElementById('growthChart'), {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                borderColor: '#707d57',
+                backgroundColor: 'rgba(135,147,108,.14)',
+                fill: true,
+                tension: .38,
+                borderWidth: 2.5,
+                pointRadius: 3,
+                pointBackgroundColor: '#707d57'
+            }]
+        },
+        options: {
+            ...base,
+            scales: {
+                ...base.scales,
+                y: {
+                    ...base.scales.y,
+                    ticks: {
+                        ...base.scales.y.ticks,
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+
+    mountainChart = new Chart(document.getElementById('mountainChart'), {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                backgroundColor: [
+                    '#596547',
+                    '#788665',
+                    '#9eaa8b',
+                    '#c3cbb7',
+                    '#dce1d5',
+                    '#e8ecdf'
+                ],
+                borderRadius: 6,
+                barThickness: 22
+            }]
+        },
+        options: {
+            ...base,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    ...base.scales.x,
+                    grid: { color: '#f0f1ed' },
+                    beginAtZero: true
+                },
+                y: {
+                    ...base.scales.y,
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+
+    // Populate charts if API data has already loaded
+    updateGrowth();
+    updatePopularMountains();
+}
+
+function updateGrowth() {
+    if (!growthChart || !overviewData) return;
+
+    const selectedRange = Number(
+        document.getElementById('growthRange')?.value || 6
+    );
+
+    const labels = overviewData.user_growth?.labels || [];
+    const values = overviewData.user_growth?.data || [];
+
+    growthChart.data.labels = labels.slice(-selectedRange);
+    growthChart.data.datasets[0].data = values.slice(-selectedRange);
+
+    growthChart.update();
+}
+
+function updatePopularMountains() {
+    if (!mountainChart || !overviewData) return;
+
+    const mountains = overviewData.popular_mountains || [];
+
+    mountainChart.data.labels = mountains.map(
+        item => item.mountain_name
+    );
+
+    mountainChart.data.datasets[0].data = mountains.map(
+        item => Number(item.trips_count)
+    );
+
+    mountainChart.update();
+}
+
+function exportData() {
+
+  const data = {exportedAt: new Date().toISOString(), members: serverMembers, trips: serverTrips, reports: adminReports, locationRequests: adminLocationRequests};
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+
+  a.href = url;
+
+  a.download = 'hiking-buddy-admin-overview.json';
+
+  a.click();
+
+  URL.revokeObjectURL(url);
+
+}
+
+
+
+const sidebar = document.getElementById('sidebar');
+
+const scrim = document.getElementById('scrim');
+
+
+
+function closeMenu() {
+
+  sidebar.classList.add('-translate-x-full');
+
+  sidebar.classList.add('lg:translate-x-0');
+
+  scrim.style.display = 'none';
+
+}
+
+
+
+document.getElementById('menuBtn').onclick = () => {
+
+  sidebar.classList.remove('-translate-x-full');
+
+  scrim.style.display = 'block';
+
+};
+
+scrim.onclick = closeMenu;
+
+
+
+// Restore admin session when the page is refreshed
+
+async function restoreAdminSession() {
+
+  const token = sessionStorage.getItem('hb-admin-token');
+
+
+
+  // If there is no saved token, show the login screen
+
+  if (!token) {
+
+    loginScreen.classList.remove('hidden');
+
+    dashboard.classList.add('dimmed');
+
+    return;
+
+  }
+
+
+
+  try {
+
+    const response = await fetch(`${API_BASE}/user`, {
+
+      method: 'GET',
+
+      headers: adminHeaders()
+
+    });
+
+
+
+    if (!response.ok) {
+
+      throw new Error('Admin session expired.');
+
+    }
+
+
+
+    const data = await response.json();
+
+
+
+    const savedUser = JSON.parse(
+
+      sessionStorage.getItem('hb-admin-user') || '{}'
+
+    );
+
+
+
+    const currentUser = data.user || data;
+
+
+
+    if ((currentUser.role || savedUser.role) !== 'admin') {
+
+      throw new Error('Admin access is required.');
+
+    }
+
+
+
+    // Restore the dashboard
+
+    loginScreen.classList.add('hidden');
+
+    dashboard.classList.remove('dimmed');
+
+
+
+    // Load the previously selected page
+
+    dashboardInitialized = false;
+
+    initDashboard();
+
+
+
+  } catch (error) {
+
+    console.error('Session restoration failed:', error);
+
+
+
+    sessionStorage.removeItem('hb-admin-token');
+
+    sessionStorage.removeItem('hb-admin-user');
+
+
+
+    loginScreen.classList.remove('hidden');
+
+    dashboard.classList.add('dimmed');
+
+  }
+
+}
+
+
+
+// Run session restoration when the page loads
+
+restoreAdminSession();
+
+
+
+</script>
+
+</body>
+
+</html>

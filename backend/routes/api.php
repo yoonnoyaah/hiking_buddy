@@ -82,11 +82,6 @@ Route::get('/mountains', [MountainController::class, 'index']);
 Route::get('/mountains/{id}', [MountainController::class, 'show']);
 Route::get('/regions', [LocationRequestController::class, 'regions']);
 
-Route::get('/admin/overview', [
-    AdminOverviewController::class,
-    'index'
-]);
-
 // Protected routes
 Route::middleware('auth:sanctum', 'active.account')->group(function () {
     Route::get('/user', [AuthController::class, 'me']);
@@ -97,6 +92,9 @@ Route::middleware('auth:sanctum', 'active.account')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::patch('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
+    // Admin overview
+    Route::get('/admin/overview', [AdminOverviewController::class, 'index']);
 
     Route::get('/admin/members', [AdminMemberController::class, 'index']);
     // Trip moderation

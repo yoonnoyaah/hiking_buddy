@@ -10,35 +10,8 @@
 
 <title>Hiking Buddy · Admin</title>
 
-<script src="https\://cdn.tailwindcss.com"></script>
 
-<script src="https\://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<script>
-
-tailwind.config={
-
-  theme:{
-
-    extend:{
-
-      colors:{
-
-        sage:{50:'#f4f6ef',100:'#e8ecdf',200:'#d4ddc7',500:'#87936c',600:'#707d57',700:'#596547'},
-
-        ink:'#292d25'
-
-      },
-
-      boxShadow:{soft:'0 12px 35px rgba(41,45,37,.06)'}
-
-    }
-
-  }
-
-}
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 
@@ -322,18 +295,6 @@ tailwind.config={
 
       </label>
 
-      <div class="flex items-center justify-between text-xs text-stone-500">
-
-        <label class="flex items-center gap-2 cursor-pointer">
-
-          <input type="checkbox" checked class="w-3.5 h-3.5 accent-sage-700"/> Remember me
-
-        </label>
-
-        <span class="text-sage-600 font-medium cursor-pointer hover:underline">Forgot password?</span>
-
-      </div>
-
       <button type="submit" class="btn-login">Sign in to dashboard →</button>
 
     </form>
@@ -544,11 +505,7 @@ const loginForm = document.getElementById('loginForm');
 
 const loginError = document.getElementById('loginError');
 
-
-
-
-
-const API_BASE = 'http\://127.0.0.1:8000/api';
+const API_BASE = 'http://127.0.0.1:8000/api';
 
 
 
@@ -642,9 +599,10 @@ loginForm.addEventListener('submit', async function(e) {
 
 
 
-    sessionStorage.setItem('hb-admin-token', data.token);
+    localStorage.setItem('hb-admin-token', data.token);
+    localStorage.setItem('hb-admin-user', JSON.stringify(data.user));
 
-    sessionStorage.setItem('hb-admin-user', JSON.stringify(data.user));
+    console.log('Admin token saved:', !!localStorage.getItem('hb-admin-token'));
 
 
 
@@ -690,7 +648,7 @@ async function signOut() {
 
 
 
-  const token = sessionStorage.getItem('hb-admin-token');
+  const token = localStorage.getItem('hb-admin-token');
 
 
 
@@ -716,9 +674,9 @@ async function signOut() {
 
 
 
-  sessionStorage.removeItem('hb-admin-token');
+  localStorage.removeItem('hb-admin-token');
 
-  sessionStorage.removeItem('hb-admin-user');
+  localStorage.removeItem('hb-admin-user');
 
 
 
@@ -770,7 +728,7 @@ let serverTrips = [];
 
 function adminHeaders() {
 
-  const token = sessionStorage.getItem('hb-admin-token');
+  const token = localStorage.getItem('hb-admin-token');
 
 
 
@@ -884,6 +842,8 @@ let overviewData = null;
 
 async function loadAdminOverview() {
     try {
+        console.log('Loading admin overview...');
+
         const response = await fetch(`${API_BASE}/admin/overview`, {
             method: 'GET',
             headers: adminHeaders()
@@ -891,30 +851,34 @@ async function loadAdminOverview() {
 
         const data = await response.json().catch(() => ({}));
 
+        console.log('Overview API response:', response.status, data);
+
         if (!response.ok || !data.success) {
             throw new Error(
-                data.message || 'Could not load dashboard statistics.'
+                data.message || `API request failed with status ${response.status}`
             );
         }
 
         overviewData = data;
 
-        // Update KPI cards
         const stats = data.statistics;
 
+        if (!stats) {
+            throw new Error('The API response does not contain statistics.');
+        }
+
         document.getElementById('kUsers').textContent =
-            Number(stats.total_users).toLocaleString();
+            Number(stats.total_users || 0).toLocaleString();
 
         document.getElementById('kTrips').textContent =
-            Number(stats.active_trips_this_month).toLocaleString();
+            Number(stats.active_trips_this_month || 0).toLocaleString();
 
         document.getElementById('kMountains').textContent =
-            Number(stats.total_mountains).toLocaleString();
+            Number(stats.total_mountains || 0).toLocaleString();
 
         document.getElementById('kJoins').textContent =
-            Number(stats.total_joins).toLocaleString();
+            Number(stats.total_joins || 0).toLocaleString();
 
-        // Update charts
         updateGrowth();
         updatePopularMountains();
 
@@ -927,23 +891,9 @@ async function loadAdminOverview() {
     }
 }
 
-let state;
-
-try {
-
-  state = JSON.parse(localStorage.getItem(key)) || seed;
-
-} catch {
-
-  state = seed;
-
-}
-
 
 
 let dashboardInitialized = false;
-
-
 
 function initDashboard() {
 
@@ -2023,93 +1973,6 @@ function removeReportedTrip(id) {
 }
 
 
-
-document.getElementById('announcementForm').addEventListener('submit', e => {
-
-  e.preventDefault();
-
-  state.announcements.unshift({
-
-    id: Date.now(),
-
-    title: document.getElementById('announcementTitle').value.trim(),
-
-    body: document.getElementById('announcementBody').value.trim(),
-
-    date: new Date().toLocaleString()
-
-  });
-
-  log('Published platform announcement');
-
-  e.target.reset();
-
-  persist();
-
-});
-
-
-
-function renderSettings() {
-
-  document.getElementById('announcementList').innerHTML = state.announcements.map(a =>
-
-    `<div class="rounded-xl border border-stone-200 p-4">
-
-      <div class="flex justify-between gap-2">
-
-        <b class="text-sm">${esc(a.title)}</b>
-
-        <button class="text-xs text-red-600" onclick="deleteAnnouncement(${a.id})">Remove</button>
-
-      </div>
-
-      <p class="mt-2 text-sm leading-6 text-stone-600">${esc(a.body)}</p>
-
-      <p class="mt-2 text-xs text-stone-400">${esc(a.date)}</p>
-
-    </div>`
-
-  ).join('') || '<p class="text-sm text-stone-400">No announcements published yet.</p>';
-
-
-
-  document.getElementById('activityList').innerHTML = state.activity.slice(0, 8).map(a =>
-
-    `<div class="flex gap-3">
-
-      <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-sage-500"></span>
-
-      <div>
-
-        <p class="text-sm">${esc(a.text)}</p>
-
-        <p class="mt-1 text-xs text-stone-400">${esc(a.time)}</p>
-
-      </div>
-
-    </div>`
-
-  ).join('');
-
-}
-
-
-
-function deleteAnnouncement(id) {
-
-  state.announcements = state.announcements.filter(a => a.id !== id);
-
-  log('Removed an announcement');
-
-  persist();
-
-}
-
-
-
-
-
 function renderRecent() {
 
   document.getElementById('recentMembers').innerHTML =
@@ -2162,7 +2025,6 @@ function renderAll() {
     renderMembers();
     renderTrips();
     renderReports();
-    renderSettings();
     renderRecent();
 }
 
@@ -2349,111 +2211,62 @@ scrim.onclick = closeMenu;
 
 
 
-// Restore admin session when the page is refreshed
-
 async function restoreAdminSession() {
+    const token = localStorage.getItem('hb-admin-token');
 
-  const token = sessionStorage.getItem('hb-admin-token');
+    console.log('Saved admin token:', token ? 'Found' : 'Not found');
 
-
-
-  // If there is no saved token, show the login screen
-
-  if (!token) {
-
-    loginScreen.classList.remove('hidden');
-
-    dashboard.classList.add('dimmed');
-
-    return;
-
-  }
-
-
-
-  try {
-
-    const response = await fetch(`${API_BASE}/user`, {
-
-      method: 'GET',
-
-      headers: adminHeaders()
-
-    });
-
-
-
-    if (!response.ok) {
-
-      throw new Error('Admin session expired.');
-
+    if (!token) {
+        loginScreen.classList.remove('hidden');
+        dashboard.classList.add('dimmed');
+        return;
     }
 
+    try {
+        const response = await fetch(`${API_BASE}/user`, {
+            method: 'GET',
+            headers: adminHeaders()
+        });
 
+        console.log('User API status:', response.status);
 
-    const data = await response.json();
+        const data = await response.json();
 
+        console.log('User API response:', data);
 
+        if (!response.ok) {
+            throw new Error(data.message || 'Admin session expired.');
+        }
 
-    const savedUser = JSON.parse(
+        const savedUser = JSON.parse(
+            localStorage.getItem('hb-admin-user') || '{}'
+        );
 
-      sessionStorage.getItem('hb-admin-user') || '{}'
+        const currentUser = data.user || data;
 
-    );
+        console.log('Current user role:', currentUser.role);
+        console.log('Saved user role:', savedUser.role);
 
+        if ((currentUser.role || savedUser.role) !== 'admin') {
+            throw new Error('Admin access is required.');
+        }
 
+        loginScreen.classList.add('hidden');
+        dashboard.classList.remove('dimmed');
 
-    const currentUser = data.user || data;
+        dashboardInitialized = false;
+        initDashboard();
 
+    } catch (error) {
+        console.error('Session restoration failed:', error);
 
+        localStorage.removeItem('hb-admin-token');
+        localStorage.removeItem('hb-admin-user');
 
-    if ((currentUser.role || savedUser.role) !== 'admin') {
-
-      throw new Error('Admin access is required.');
-
+        loginScreen.classList.remove('hidden');
+        dashboard.classList.add('dimmed');
     }
-
-
-
-    // Restore the dashboard
-
-    loginScreen.classList.add('hidden');
-
-    dashboard.classList.remove('dimmed');
-
-
-
-    // Load the previously selected page
-
-    dashboardInitialized = false;
-
-    initDashboard();
-
-
-
-  } catch (error) {
-
-    console.error('Session restoration failed:', error);
-
-
-
-    sessionStorage.removeItem('hb-admin-token');
-
-    sessionStorage.removeItem('hb-admin-user');
-
-
-
-    loginScreen.classList.remove('hidden');
-
-    dashboard.classList.add('dimmed');
-
-  }
-
 }
-
-
-
-// Run session restoration when the page loads
 
 restoreAdminSession();
 
