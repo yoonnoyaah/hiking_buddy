@@ -7,3 +7,210 @@
 @media(min-width:1024px){.lg\:translate-x-0{transform:translateX(0)}.lg\:hidden{display:none}.lg\:ml-\[250px\]{margin-left:250px}.lg\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.side{width:250px}}
 @media(min-width:1280px){.xl\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.xl\:grid-cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}.xl\:grid-cols-\[1\.2fr_\.8fr\]{grid-template-columns:1.2fr .8fr}.xl\:grid-cols-\[1\.45fr_1fr\]{grid-template-columns:1.45fr 1fr}}
 @media(max-width:1023px){.side{box-shadow:0 20px 50px rgba(0,0,0,.08)}.side:not(.translate-x-0){transform:translateX(-100%)}main{width:100%;margin-left:0!important}.overlay.active{display:block;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:20}}
+
+
+/* =========================================
+   ADMIN NOTIFICATION PANEL
+========================================= */
+
+#adminNotificationPanel {
+    position: fixed;
+    top: 86px;
+    right: 20px;
+    width: min(92vw, 420px);
+    z-index: 50;
+    background: #ffffff;
+    border: 1px solid #e7e5e4;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 15px 40px rgba(41, 45, 37, 0.12);
+}
+
+#adminNotificationPanel.hidden {
+    display: none;
+}
+
+/* Mark all as read */
+
+#adminNotificationPanel > div:first-child > button {
+    border: none;
+    border-radius: 8px;
+    padding: 9px 12px;
+    background: #eef1e8;
+    color: #596547;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#adminNotificationPanel > div:first-child > button:hover {
+    background: #dce4d2;
+    color: #3f4b32;
+}
+
+/* Individual notification cards */
+
+#adminNotificationList > button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 1px solid #e9ebe5;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 8px;
+    background: #ffffff;
+    color: #292d25;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Unread notifications */
+
+#adminNotificationList > button:not(.opacity-70) {
+    background: #f4f6ef;
+    border-color: #dce4d2;
+}
+
+/* Notification hover */
+
+#adminNotificationList > button:hover {
+    background: #e8ecdf !important;
+    border-color: #bfcbb0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(41, 45, 37, 0.06);
+}
+
+/* Keyboard focus */
+
+#adminNotificationList > button:focus-visible {
+    outline: 2px solid #87936c;
+    outline-offset: 2px;
+}
+
+/* Sign out button */
+
+#sidebar button {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: transparent;
+    color: #78716c;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+}
+
+#sidebar button:hover {
+    background: #e8ecdf;
+    color: #596547;
+}
+
+
+/* =========================================
+   LOCATION APPROVALS TABS
+========================================= */
+
+#locationTabMountains,
+#locationTabRegions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    background: transparent;
+    color: #8b8b83;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Hover effect */
+
+#locationTabMountains:hover,
+#locationTabRegions:hover {
+    background: #f4f6ef;
+    color: #596547;
+}
+
+/* Active tab */
+
+#locationTabMountains.border-sage-600,
+#locationTabRegions.border-sage-600 {
+    color: #596547 !important;
+    border-bottom: 3px solid #596547 !important;
+    background: #f4f6ef;
+}
+
+/* Inactive tab */
+
+#locationTabMountains.border-transparent,
+#locationTabRegions.border-transparent {
+    color: #8b8b83 !important;
+    border-bottom: 3px solid transparent !important;
+}
+
+/* Request count badges */
+
+#mountainRequestBadge,
+#regionRequestBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 23px;
+    height: 23px;
+    padding: 2px 7px;
+    border-radius: 50px;
+    background: #e8eddf;
+    color: #596547;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* Keep hidden badges hidden */
+
+#mountainRequestBadge.hidden,
+#regionRequestBadge.hidden {
+    display: none;
+}
+
+/* Keyboard focus */
+
+#locationTabMountains:focus-visible,
+#locationTabRegions:focus-visible {
+    outline: 2px solid #87936c;
+    outline-offset: -3px;
+}
+
+/* Mobile sidebar menu */
+#sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+}
+
+#sidebar.menu-open {
+    transform: translateX(0);
+}
+
+#scrim {
+    display: none;
+}
+
+#scrim.menu-open {
+    display: block;
+}
+
+/* Keep sidebar visible on desktop */
+@media (min-width: 1024px) {
+    #sidebar {
+        transform: translateX(0) !important;
+    }
+
+    #scrim {
+        display: none !important;
+    }
+}

@@ -318,7 +318,23 @@
 
 <aside id="sidebar" class="side fixed inset-y-0 left-0 z-30 bg-white border-r border-stone-200/80 p-5 flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-300">
 
-<a href="#overview" class="flex items-center gap-3 px-2 py-3"><span class="grid place-items-center w-10 h-10 rounded-xl bg-sage-700 text-white text-xl">⌁</span><span><b class="text-lg tracking-tight">hiking<span class="text-sage-600">buddy</span></b><small class="block text-xs text-stone-400">ADMIN CONSOLE</small></span></a>
+<div class="flex items-center justify-between gap-2 px-2 py-3">
+    <a href="#overview" class="flex items-center gap-3">
+        <span class="grid place-items-center w-10 h-10 rounded-xl bg-sage-700 text-white text-xl">⌁</span>
+        <span>
+            <b class="text-lg tracking-tight">hiking<span class="text-sage-600">buddy</span></b>
+            <small class="block text-xs text-stone-400">ADMIN CONSOLE</small>
+        </span>
+    </a>
+
+    <button
+        type="button"
+        onclick="closeMenu()"
+        class="rounded-lg border border-stone-200 px-3 py-1.5 text-xl text-stone-500 hover:bg-stone-100 lg:hidden"
+        aria-label="Close navigation">
+        ×
+    </button>
+</div>
 
 <div class="mt-8 mb-2 px-3 text-[10px] font-bold tracking-[.16em] text-stone-400">WORKSPACE</div>
 
@@ -478,12 +494,9 @@
 
 <section id="page-reports" class="page">
   <div><p class="text-xs font-bold tracking-[.15em] text-sage-600">TRUST & SAFETY</p><h2 class="mt-2 text-2xl font-bold">Community Reports</h2><p class="mt-2 text-sm text-stone-500">Review content reports submitted by members.</p></div>
-  <div class="mt-6 flex flex-wrap gap-2 border-b border-stone-200">
-    <button id="reportTabCommunity" class="rounded-t-xl border-b-2 border-sage-700 px-4 py-3 text-sm font-semibold text-sage-700" onclick="setReportTab('community')">Community Reports</button>
-    
-  </div>
-  <div id="communityReportsList" class="mt-5 grid gap-4 lg:grid-cols-2"></div>
-  <div id="tripReportsList" class="mt-5 hidden md:grid gap-4 lg:grid-cols-2"></div>
+  
+
+<div id="communityReportsList" class="mt-5 grid gap-4 lg:grid-cols-2"></div>
 </section>
 
 
@@ -1012,7 +1025,7 @@ function initDashboard() {
       if (targetId) setTimeout(() => focusAdminItem(`location-request-${targetId}`), 700);
     }
     if (initial === 'reports') {
-      setReportTab(tab === 'trips' ? 'trips' : 'community');
+      setReportTab('community');
       if (targetId) setTimeout(() => focusAdminItem(`report-${targetId}`), 700);
     }
   }
@@ -1766,14 +1779,24 @@ function setLocationTab(tab) {
 }
 
 
-function setReportTab(tab) {
-  activeReportTab = tab;
-  const community = tab === 'community';
-  document.getElementById('communityReportsList').classList.toggle('hidden', !community);
-  document.getElementById('tripReportsList').classList.toggle('hidden', community);
-  document.getElementById('reportTabCommunity').className = `rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold ${community ? 'border-sage-700 text-sage-700' : 'border-transparent text-stone-500'}`;
-  document.getElementById('reportTabTrips').className = `rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold ${!community ? 'border-sage-700 text-sage-700' : 'border-transparent text-stone-500'}`;
+
+function setReportTab(tab = 'community') {
+    activeReportTab = 'community';
+
+    const communityList = document.getElementById('communityReportsList');
+    const communityTab = document.getElementById('reportTabCommunity');
+
+    if (!communityList || !communityTab) {
+        console.error('Community report elements are missing.');
+        return;
+    }
+
+    communityList.classList.remove('hidden');
+
+    communityTab.className =
+        'rounded-t-xl border-b-2 px-4 py-3 text-sm font-semibold border-sage-700 text-sage-700';
 }
+
 
 function requestCard(item, type) {
   const pending = item.status === 'pending';
@@ -1839,25 +1862,65 @@ function reportCard(item, category) {
   </article>`;
 }
 
+
 async function loadAdminReports() {
-  const communityEl = document.getElementById('communityReportsList');
-  const tripsEl = document.getElementById('tripReportsList');
-  communityEl.innerHTML = tripsEl.innerHTML = '<div class="panel p-8 text-center text-sm text-stone-400">Loading reports from MySQL…</div>';
-  try {
-    const data = await adminFetch('/admin/reports');
-    adminReports = Array.isArray(data.reports) ? data.reports : Array.isArray(data.reports?.data) ? data.reports.data : Array.isArray(data.data) ? data.data : [];
-    const communityItems = adminReports.filter(x => x.reportable_type === 'App\\Models\\CommunityPost' || x.reportable_type === 'community_post' || x.type === 'community_post');
-    const tripItems = adminReports.filter(x => x.reportable_type === 'App\\Models\\GroupTrip' || x.reportable_type === 'group_trip' || x.type === 'group_trip');
-    communityEl.innerHTML = communityItems.map(x => reportCard(x, 'community')).join('') || '<div class="panel p-8 text-center text-sm text-stone-400">No community reports.</div>';
-   
-    const pending = adminReports.filter(x => x.status === 'pending').length;
-    document.getElementById('reportCount').textContent = pending;
-    document.getElementById('pendingMini').textContent = pending;
-    document.getElementById('pendingBar').style.width = Math.min(100, pending * 9) + '%';
-  } catch (error) {
-    communityEl.innerHTML = tripsEl.innerHTML = `<div class="panel p-8 text-center text-sm text-red-500">${esc(error.message)}</div>`;
-  }
+    const communityEl = document.getElementById('communityReportsList');
+
+    if (!communityEl) {
+        console.error('Community reports container is missing.');
+        return;
+    }
+
+    communityEl.innerHTML = `
+        <div class="panel p-8 text-center text-sm text-stone-400">
+            Loading reports from MySQL…
+        </div>
+    `;
+
+    try {
+        const data = await adminFetch('/admin/reports');
+
+        adminReports = Array.isArray(data.reports)
+            ? data.reports
+            : Array.isArray(data.reports?.data)
+                ? data.reports.data
+                : Array.isArray(data.data)
+                    ? data.data
+                    : [];
+
+        const communityItems = adminReports.filter(x =>
+            x.reportable_type === 'App\\Models\\CommunityPost' ||
+            x.reportable_type === 'community_post' ||
+            x.type === 'community_post'
+        );
+
+        communityEl.innerHTML = communityItems
+            .map(x => reportCard(x, 'community'))
+            .join('') ||
+            `<div class="panel p-8 text-center text-sm text-stone-400">
+                No community reports.
+            </div>`;
+
+        const pending = adminReports.filter(
+            x => x.status === 'pending'
+        ).length;
+
+        document.getElementById('reportCount').textContent = pending;
+        document.getElementById('pendingMini').textContent = pending;
+        document.getElementById('pendingBar').style.width =
+            Math.min(100, pending * 9) + '%';
+
+    } catch (error) {
+        communityEl.innerHTML = `
+            <div class="panel p-8 text-center text-sm text-red-500">
+                ${esc(error.message)}
+            </div>
+        `;
+
+        console.error('Admin reports loading error:', error);
+    }
 }
+
 
 async function reviewReport(id, status) {
   const admin_note = prompt(status === 'resolved' ? 'Optional: add a note about the action taken.' : 'Optional: add a reason for dismissing this report.') || '';
@@ -1935,7 +1998,7 @@ async function openAdminNotification(id) {
       await loadLocationRequests();
       if (targetId) focusAdminItem(`location-request-${targetId}`);
     } else if (page === 'reports') {
-      setReportTab(tab === 'trips' ? 'trips' : 'community');
+     setReportTab('community');
       await loadAdminReports();
       if (targetId) focusAdminItem(`report-${targetId}`);
     }
@@ -2179,13 +2242,30 @@ function exportData() {
 
 }
 
-
-
 const sidebar = document.getElementById('sidebar');
-
 const scrim = document.getElementById('scrim');
+const menuBtn = document.getElementById('menuBtn');
 
+function openMenu() {
+    sidebar.classList.add('menu-open');
+    scrim.classList.add('menu-open');
+}
 
+function closeMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const scrim = document.getElementById('scrim');
+
+    if (sidebar) {
+        sidebar.classList.remove('menu-open');
+    }
+
+    if (scrim) {
+        scrim.classList.remove('menu-open');
+    }
+}
+
+menuBtn.addEventListener('click', openMenu);
+scrim.addEventListener('click', closeMenu);
 
 function closeMenu() {
 
@@ -2275,5 +2355,5 @@ restoreAdminSession();
 </script>
 
 </body>
-
+a
 </html>

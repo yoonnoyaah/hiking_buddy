@@ -3896,22 +3896,63 @@ function AuthPage({ mode, setUser }) {
   const register = mode === 'register';
   const nav = useNavigate();
 
+  // Track registration step: 1 = Account details, 2 = Hiking preferences
+  const [step, setStep] = useState(1);
+
   const [form, setForm] = useState({
     name: '',
     email: '',
     password: '',
     password_confirmation: '',
-    city: 'Mandalay'
+    city: 'Mandalay',
+    fitness_level: 'Intermediate',
+    preferred_pace: 'Steady'
   });
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Reset to step 1 if switching between /login and /register
+  useEffect(() => {
+    setStep(1);
+    setError('');
+  }, [mode]);
 
   const change = e => {
     setForm({
       ...form,
       [e.target.name]: e.target.value
     });
+  };
+
+  // Validate Step 1 before showing Step 2
+  const handleNextStep = e => {
+    e.preventDefault();
+    setError('');
+
+    const email = form.email.trim().toLowerCase();
+
+    if (!form.name.trim()) {
+      setError('Enter your full name.');
+      return;
+    }
+
+    if (!email || !email.includes('@')) {
+      setError('Enter a valid email address.');
+      return;
+    }
+
+    if (form.password.length < 8) {
+      setError('Use at least 8 characters for the password.');
+      return;
+    }
+
+    if (form.password !== form.password_confirmation) {
+      setError('The passwords do not match.');
+      return;
+    }
+
+    setStep(2);
   };
 
   const submit = async e => {
@@ -3947,8 +3988,8 @@ function AuthPage({ mode, setUser }) {
             password: form.password,
             password_confirmation: form.password_confirmation,
             city: form.city,
-            fitness_level: 'Intermediate',
-            preferred_pace: 'Steady'
+            fitness_level: form.fitness_level,
+            preferred_pace: form.preferred_pace
           }
         : {
             email,
@@ -3970,6 +4011,11 @@ function AuthPage({ mode, setUser }) {
         const validationErrors = data.errors
           ? Object.values(data.errors).flat().join(' ')
           : '';
+
+        // If backend returns an email/password validation error, return to step 1
+        if (register && (data.errors?.email || data.errors?.password || data.errors?.name)) {
+          setStep(1);
+        }
 
         throw new Error(
           validationErrors ||
@@ -4038,73 +4084,83 @@ function AuthPage({ mode, setUser }) {
         </div>
 
         <div className="p-6 sm:p-10">
-          <Link to="/" className="text-sm text-stone-400 hover:text-sage-700">
-            ← Back to home
-          </Link>
+          {register && step === 2 ? (
+            <button
+              type="button"
+              onClick={() => {
+                setError('');
+                setStep(1);
+              }}
+              className="text-sm text-stone-400 hover:text-sage-700"
+            >
+              ← Back to account details
+            </button>
+          ) : (
+            <Link to="/" className="text-sm text-stone-400 hover:text-sage-700">
+              ← Back to home
+            </Link>
+          )}
 
           <p className="eyebrow mt-8">
-            {register ? 'JOIN THE COMMUNITY' : 'WELCOME BACK'}
+            {register
+              ? `STEP ${step} OF 2 · ${step === 1 ? 'ACCOUNT DETAILS' : 'HIKING PREFERENCES'}`
+              : 'WELCOME BACK'}
           </p>
 
           <h2 className="mt-2 text-3xl font-bold tracking-tight text-ink">
-            {register ? 'Create an account' : 'Sign in'}
+            {register
+              ? step === 1
+                ? 'Create an account'
+                : 'Your hiking style'
+              : 'Sign in'}
           </h2>
 
           <p className="mt-2 text-sm text-stone-500">
             {register
-              ? 'Your next outdoor story starts here.'
+              ? step === 1
+                ? 'Your next outdoor story starts here.'
+                : 'Tell us your region, fitness level, and preferred pace.'
               : 'Your hiking buddies are waiting.'}
           </p>
 
-          <form onSubmit={submit} className="mt-7 space-y-4">
+          {/* Step progress indicator for registration */}
+          {register && (
+            <div className="mt-5 flex gap-2">
+              <div className="h-1.5 flex-1 rounded-full bg-sage-600" />
+              <div
+                className={`h-1.5 flex-1 rounded-full transition-colors ${
+                  step === 2 ? 'bg-sage-600' : 'bg-stone-200'
+                }`}
+              />
+            </div>
+          )}
 
-            {register && (
+          {/* STEP 1 (or Login) */}
+          {(!register || step === 1) && (
+            <form onSubmit={register ? handleNextStep : submit} className="mt-7 space-y-4">
+              {register && (
+                <Field
+                  label="Full name"
+                  name="name"
+                  value={form.name}
+                  onChange={change}
+                  placeholder="Your name"
+                  required
+                />
+              )}
+
               <Field
-                label="Full name"
-                name="name"
-                value={form.name}
+                label="Email address"
+                type="email"
+                name="email"
+                value={form.email}
                 onChange={change}
-                placeholder="Your name"
+                placeholder="name@example.com"
                 required
               />
-            )}
 
-            <Field
-              label="Email address"
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={change}
-              placeholder="name@example.com"
-              required
-            />
-
-            <label className="field-label">
-              Password
-
-              <div className="relative mt-2">
-                <LockKeyhole
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
-                />
-
-                <input
-                  className="field !pl-10"
-                  type="password"
-                  name="password"
-                  value={form.password}
-                  onChange={change}
-                  placeholder="At least 8 characters"
-                  minLength={8}
-                  required
-                  autoComplete={register ? 'new-password' : 'current-password'}
-                />
-              </div>
-            </label>
-
-            {register && (
               <label className="field-label">
-                Confirm password
+                Password
 
                 <div className="relative mt-2">
                   <LockKeyhole
@@ -4115,19 +4171,73 @@ function AuthPage({ mode, setUser }) {
                   <input
                     className="field !pl-10"
                     type="password"
-                    name="password_confirmation"
-                    value={form.password_confirmation}
+                    name="password"
+                    value={form.password}
                     onChange={change}
-                    placeholder="Enter your password again"
+                    placeholder="At least 8 characters"
                     minLength={8}
                     required
-                    autoComplete="new-password"
+                    autoComplete={register ? 'new-password' : 'current-password'}
                   />
                 </div>
               </label>
-            )}
 
-            {register && (
+              {register && (
+                <label className="field-label">
+                  Confirm password
+
+                  <div className="relative mt-2">
+                    <LockKeyhole
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                    />
+
+                    <input
+                      className="field !pl-10"
+                      type="password"
+                      name="password_confirmation"
+                      value={form.password_confirmation}
+                      onChange={change}
+                      placeholder="Enter your password again"
+                      minLength={8}
+                      required
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </label>
+              )}
+
+              {error && (
+                <p
+                  role="alert"
+                  className="rounded-lg bg-red-50 p-3 text-sm text-red-700"
+                >
+                  {error}
+                </p>
+              )}
+
+              <button
+                className="btn-primary w-full justify-center disabled:opacity-60"
+                type="submit"
+                disabled={loading}
+              >
+                {register ? (
+                  <>
+                    Continue <ArrowRight size={16} />
+                  </>
+                ) : (
+                  <>
+                    {loading ? 'Please wait...' : 'Sign in'}
+                    {!loading && <ArrowRight size={16} />}
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+
+          {/* STEP 2 (Preferences for Registration) */}
+          {register && step === 2 && (
+            <form onSubmit={submit} className="mt-7 space-y-4">
               <Field
                 label="Home region"
                 name="city"
@@ -4135,31 +4245,56 @@ function AuthPage({ mode, setUser }) {
                 onChange={change}
                 options={regions.slice(1)}
               />
-            )}
 
-            {error && (
-              <p
-                role="alert"
-                className="rounded-lg bg-red-50 p-3 text-sm text-red-700"
-              >
-                {error}
-              </p>
-            )}
+              <Field
+                label="Fitness level"
+                name="fitness_level"
+                value={form.fitness_level}
+                onChange={change}
+                options={['Beginner', 'Intermediate', 'Advanced']}
+              />
 
-            <button
-              className="btn-primary w-full justify-center disabled:opacity-60"
-              type="submit"
-              disabled={loading}
-            >
-              {loading
-                ? 'Please wait...'
-                : register
-                  ? 'Create account'
-                  : 'Sign in'}
+              <Field
+                label="Preferred pace"
+                name="preferred_pace"
+                value={form.preferred_pace}
+                onChange={change}
+                options={['Relaxed', 'Steady', 'Fast']}
+              />
 
-              {!loading && <ArrowRight size={16} />}
-            </button>
-          </form>
+              {error && (
+                <p
+                  role="alert"
+                  className="rounded-lg bg-red-50 p-3 text-sm text-red-700"
+                >
+                  {error}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError('');
+                    setStep(1);
+                  }}
+                  className="btn-secondary flex-1 justify-center"
+                  disabled={loading}
+                >
+                  Back
+                </button>
+
+                <button
+                  className="btn-primary flex-[2] justify-center disabled:opacity-60"
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? 'Please wait...' : 'Create account'}
+                  {!loading && <ArrowRight size={16} />}
+                </button>
+              </div>
+            </form>
+          )}
 
           <p className="mt-6 text-center text-sm text-stone-500">
             {register ? 'Already a member?' : 'New to Hiking Buddy?'}{' '}
